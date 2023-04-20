@@ -51,7 +51,6 @@ function build_sopf_iv(pm::AbstractPowerModel)
 
         for b in _PM.ids(pm, :branch, nw=n)
             _PM.constraint_voltage_drop(pm, b, nw=n)
-
             constraint_gp_branch_series_current_magnitude_squared(pm, b, nw=n)
         end
 

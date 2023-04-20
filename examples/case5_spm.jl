@@ -1,3 +1,7 @@
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+
 using JuMP
 using Ipopt
 using PowerModels
@@ -11,7 +15,7 @@ const SPM = StochasticPowerModels
 ipopt_solver = Ipopt.Optimizer
 
 # input
-deg  = 1
+deg  = 2
 case = "case5_spm.m"
 
 # data

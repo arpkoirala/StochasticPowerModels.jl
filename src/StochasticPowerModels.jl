@@ -17,7 +17,10 @@ module StochasticPowerModels
     import Memento
     import PolyChaos
     import PowerModels
-
+    using CSV
+    using DataFrames
+    using JSON
+    using PowerModelsDistribution
     # import types
     import PowerModels: AbstractPowerModel, AbstractACRModel, AbstractIVRModel
 
@@ -27,6 +30,7 @@ module StochasticPowerModels
     const _PCE = PolyChaos
     const _PM = PowerModels
     const _SPM = StochasticPowerModels
+    const _PMD = PowerModelsDistribution
 
     # memento logger
     function __init__()
@@ -37,7 +41,7 @@ module StochasticPowerModels
     const nw_id_default = 1
 
     # funct
-    sorted_nw_ids(pm) = sort(collect(_PM.nw_ids(pm)))
+    sorted_nw_ids(pm) = sort(collect(_PMD.nw_ids(pm)))
 
     # paths
     const BASE_DIR = dirname(@__DIR__)
@@ -50,9 +54,11 @@ module StochasticPowerModels
 
     include("form/acr.jl")
     include("form/iv.jl")
+    include("form/iv_mc.jl")
 
     include("prob/sopf_acr.jl")
     include("prob/sopf_iv.jl")
+    include("prob/sopf_iv_mc.jl")
 
     include("util/data.jl")
     include("util/util.jl")
@@ -60,9 +66,10 @@ module StochasticPowerModels
     # export
     export BASE_DIR
 
-    export solve_sopf_iv, solve_sopf_acr
+    export solve_sopf_iv, solve_sopf_acr, solve_sopf_iv_mc
 
     export build_stochastic_data
+    export build_stochastic_data_mc
     export extend_matlab_file
     export pce_coeff, sample, density, print_summary
 end 
