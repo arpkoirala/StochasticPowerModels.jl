@@ -790,7 +790,7 @@ function build_stochastic_data_mc_dss(data, deg::Int)
     s["dst"]= "Beta"
     s["dst_id"] = 1
     s["pa"]= 0.5
-    s["pb"]= 0.5
+    s["pb"]= 2
     s["pc"]= 0
     s["pd"]= data["load"]["1"]["pd"][1]
     s_dict["1"] = s
@@ -800,7 +800,7 @@ function build_stochastic_data_mc_dss(data, deg::Int)
     s["dst_id"] = 2
     s["pa"]= 1
     s["pb"]= 2
-    s["pc"]= 0.005
+    s["pc"]= 0
     s["pd"]= data["load"]["3"]["pd"][1]
     s_dict["2"] = s
     

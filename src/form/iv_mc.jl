@@ -14,9 +14,6 @@ function variable_mc_branch_current(pm::AbstractUnbalancedIVRModel; nw::Int=nw_i
     _PMD.variable_mc_branch_current_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
     _PMD.variable_mc_branch_current_series_real(pm, nw=nw, bounded=bounded, report=report; kwargs...)
     _PMD.variable_mc_branch_current_series_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
-    # expression_mc_variable_branch_current_real(pm, nw=nw, bounded=bounded, report=report; kwargs...)
-    # expression_mc_variable_branch_current_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
-    
     variable_mc_branch_series_current_magnitude_squared(pm, nw=nw, bounded=bounded, report=report; kwargs...)
 end
 "variable: `cr[l,i,j]` for `(l,i,j)` in `arcs`"
@@ -27,19 +24,8 @@ function expression_mc_variable_branch_current_real(pm::AbstractUnbalancedPowerM
     branch = _PMD.ref(pm, nw, :branch)
     for (l,i,j) in _PMD.ref(pm, nw, :arcs_branch_from)
         b = branch[l]
-        # tm = b["tap"]
-        # tr, ti = _PM.calc_branch_t(b)
         g_sh_fr, b_sh_fr = b["g_fr"], b["b_fr"]
         g_sh_to, b_sh_to = b["g_to"], b["b_to"]
-
-        # vr_fr = _PM.var(pm, nw, :vr, i)
-        # vi_fr = _PM.var(pm, nw, :vi, i)
-    
-        # vr_to = _PM.var(pm, nw, :vr, j)
-        # vi_to = _PM.var(pm, nw, :vi, j)
-    
-        # csr_fr = _PM.var(pm, nw, :csr, l)
-        # csi_fr = _PM.var(pm, nw, :csi, l)
         f_connections = _PMD.ref(pm, nw, :branch, l, "f_connections")
         t_connections = _PMD.ref(pm, nw, :branch, l, "t_connections")
 
@@ -55,51 +41,20 @@ function expression_mc_variable_branch_current_real(pm::AbstractUnbalancedPowerM
 
         cr[(l,i,j)] = (g_sh_fr .* vr_fr - b_sh_fr .* vi_fr)
         cr[(l,j,i)] = -csr_fr + g_sh_to .* vr_to - b_sh_to .* vi_to
-
-        # ub = Inf
-        # if haskey(b, "rate_a")
-        #     rate_fr = b["rate_a"]*b["tap"]
-        #     rate_to = b["rate_a"]
-        #     ub = max(rate_fr/bus[i]["vmin"], rate_to/bus[j]["vmin"])
-        # end
-        # if haskey(b, "c_rating_a")
-        #     ub = b["c_rating_a"]
-        # end
-
-        # if !isinf(ub)
-        #     JuMP.@constraint(pm.model, cr[(l,i,j)] >= -ub)
-        #     JuMP.@constraint(pm.model, cr[(l,i,j)] <= ub)
-
-        #     JuMP.@constraint(pm.model, cr[(l,j,i)] >= -ub)
-        #     JuMP.@constraint(pm.model, cr[(l,j,i)] <= ub)
-        # end
     end
 
     report && _IM.sol_component_value_edge(pm, _PMD.pm_it_sym, nw, :branch, :cr_fr, :cr_to, _PMD.ref(pm, nw, :arcs_from), _PMD.ref(pm, nw, :arcs_to), cr)
 end
 "variable: `ci[l,i,j]` for `(l,i,j)` in `arcs`"
 function expression_mc_variable_branch_current_imaginary(pm::AbstractUnbalancedPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
-    # ci = _PMD.var(pm, nw)[:ci] = Dict()
-
     bus = _PMD.ref(pm, nw, :bus)
     branch = _PMD.ref(pm, nw, :branch)
 
     for (l,i,j) in _PMD.ref(pm, nw, :arcs_branch_from)
         b = branch[l]
-        # tm = b["tap"]
-        # tr, ti = _PM.calc_branch_t(b)
+       
         g_sh_fr, b_sh_fr = b["g_fr"], b["b_fr"]
         g_sh_to, b_sh_to = b["g_to"], b["b_to"]
-
-        # vr_fr = _PM.var(pm, nw, :vr, i)
-        # vi_fr = _PM.var(pm, nw, :vi, i)
-    
-        # vr_to = _PM.var(pm, nw, :vr, j)
-        # vi_to = _PM.var(pm, nw, :vi, j)
-    
-        # csr_fr = _PM.var(pm, nw, :csr, l)
-        # csi_fr = _PM.var(pm, nw, :csi, l)
-
         vr_fr = [_PMD.var(pm, nw, :vr, i)[c] for c in f_connections]
         vi_fr = [_PMD.var(pm, nw, :vi, i)[c] for c in f_connections]
         cr_fr = [_PMD.var(pm, nw, :crt, (l,i,j))[c] for c in f_connections]
@@ -113,24 +68,6 @@ function expression_mc_variable_branch_current_imaginary(pm::AbstractUnbalancedP
 
         ci[(l,i,j)] .= (g_sh_fr * vi_fr + b_sh_fr * vr_fr)
         ci[(l,j,i)] .= -csi_fr + g_sh_to * vi_to + b_sh_to * vr_to
-
-        # ub = Inf
-        # if haskey(b, "rate_a")
-        #     rate_fr = b["rate_a"]*b["tap"]
-        #     rate_to = b["rate_a"]
-        #     ub = max(rate_fr/bus[i]["vmin"], rate_to/bus[j]["vmin"])
-        # end
-        # if haskey(b, "c_rating_a")
-        #     ub = b["c_rating_a"]
-        # end
-
-        # if !isinf(ub)
-        #     JuMP.@constraint(pm.model, ci[(l,i,j)] >= -ub)
-        #     JuMP.@constraint(pm.model, ci[(l,i,j)] <= ub)
-
-        #     JuMP.@constraint(pm.model, ci[(l,j,i)] >= -ub)
-        #     JuMP.@constraint(pm.model, ci[(l,j,i)] <= ub)
-        # end
     end
 
     report && _IM.sol_component_value_edge(pm, _PMD.pm_it_sym, nw, :branch, :ci_fr, :ci_to, _PMD.ref(pm, nw, :arcs_from), _PMD.ref(pm, nw, :arcs_to), ci)
@@ -215,10 +152,6 @@ function variable_mc_generator_current(pm::AbstractUnbalancedIVRModel; nw::Int=n
     variable_mc_gen_current_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
     _PMD.var(pm, nw)[:crg_bus] = Dict{Int, Any}()
     _PMD.var(pm, nw)[:cig_bus] = Dict{Int, Any}()
-
-    # store active and reactive power expressions for use in objective + post processing
-    # _PMD.var(pm, nw)[:pg] = Dict{Int, Any}()
-    # _PMD.var(pm, nw)[:qg] = Dict{Int, Any}()
 end
 
 """
@@ -304,19 +237,6 @@ end
 # galerkin projection constraint
 ## branch
 ""
-function constraint_gp_branch_series_current_magnitude_squared(pm::AbstractIVRModel, n::Int, i, T2, T3)
-    cmss  = _PM.var(pm, n, :cmss, i)
-    csr = Dict(nw => _PM.var(pm, nw, :csr, i) for nw in _PM.nw_ids(pm))
-    csi = Dict(nw => _PM.var(pm, nw, :csi, i) for nw in _PM.nw_ids(pm))
-
-    JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * cmss
-                                ==
-                                sum(T3.get([n1-1,n2-1,n-1]) * 
-                                    (csr[n1] * csr[n2] + csi[n1] * csi[n2]) 
-                                    for n1 in _PM.nw_ids(pm), n2 in _PM.nw_ids(pm))
-                    )
-end
-
 function constraint_mc_gp_branch_series_current_magnitude_squared(pm::AbstractUnbalancedIVRModel, n::Int, i::Int, f_bus::Int, t_bus::Int, f_idx::Tuple{Int64, Int64, Int64}, t_idx::Tuple{Int64, Int64, Int64}, f_connections::Vector{Int}, t_connections::Vector{Int}, T2, T3)
     cmss  = _PMD.var(pm, n, :cmss, i)
     csr = Dict(nw => _PMD.var(pm, nw, :csr, i) for nw in _PMD.nw_ids(pm))
@@ -333,39 +253,6 @@ end
 
 ## generator
 ""
-# function constraint_gp_gen_power_real(pm::AbstractUnbalancedIVRModel, n::Int, i, g, T2, T3)
-#     vr  = Dict(nw => _PM.var(pm, nw, :vr, i) for nw in _PM.nw_ids(pm))
-#     vi  = Dict(nw => _PM.var(pm, nw, :vi, i) for nw in _PM.nw_ids(pm))
-    
-#     crg = Dict(nw => _PM.var(pm, nw, :crg, g) for nw in _PM.nw_ids(pm))
-#     cig = Dict(nw => _PM.var(pm, nw, :cig, g) for nw in _PM.nw_ids(pm))
-
-#     pg  = _PM.var(pm, n, :pg, g)
-    
-#     JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * pg
-#                                 ==
-#                                 sum(T3.get([n1-1,n2-1,n-1]) * 
-#                                     (vr[n1] * crg[n2] + vi[n1] * cig[n2])
-#                                     for n1 in _PM.nw_ids(pm), n2 in _PM.nw_ids(pm))
-#                     )
-# end
-# ""
-# function constraint_gp_gen_power_imaginary(pm::AbstractUnbalancedIVRModel, n::Int, i, g, T2, T3)
-#     vr  = Dict(nw => _PM.var(pm, nw, :vr, i) for nw in _PM.nw_ids(pm))
-#     vi  = Dict(nw => _PM.var(pm, nw, :vi, i) for nw in _PM.nw_ids(pm))
-    
-#     crg = Dict(nw => _PM.var(pm, nw, :crg, g) for nw in _PM.nw_ids(pm))
-#     cig = Dict(nw => _PM.var(pm, nw, :cig, g) for nw in _PM.nw_ids(pm))
-
-#     qg  = _PM.var(pm, n, :qg, g)
-    
-#     JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * qg
-#                                 ==
-#                                 sum(T3.get([n1-1,n2-1,n-1]) *
-#                                     (vi[n1] * crg[n2] - vr[n1] * cig[n2])
-#                                     for n1 in _PM.nw_ids(pm), n2 in _PM.nw_ids(pm))
-#                     )
-# end
 
 function constraint_mc_gp_generator_power_wye(pm::IVRUPowerModel, n::Int, id::Int, bus_id::Int, connections::Vector{Int}, pmin::Vector{<:Real}, pmax::Vector{<:Real}, qmin::Vector{<:Real}, qmax::Vector{<:Real}, T2, T3; report::Bool=true, bounded::Bool=true)
     vr = Dict(nw =>_PMD.var(pm, nw, :vr, bus_id) for nw in _PMD.nw_ids(pm))
@@ -392,40 +279,13 @@ function constraint_mc_gp_generator_power_wye(pm::IVRUPowerModel, n::Int, id::In
                                         for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm))
                                         )
     end
-        # pg_temp  = sum(T3.get([n1-1,n2-1,n-1]) * (vr[n1][c]*crg[n2][c]+vi[n1][c]*cig[n2][c]) 
-        #                         for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm)) * (1/T2.get([n-1,n-1]))
-        # qg_temp = sum(T3.get([n1-1,n2-1,n-1]) * (-vr[n1][c]*cig[n2][c]+vi[n1][c]*crg[n2][c])
-        #                         for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm)) * (1/T2.get([n-1,n-1]))
-        # push!(pg, JuMP.@NLexpression(pm.model,  pg_temp))
-        # push!(qg, JuMP.@NLexpression(pm.model, qg_temp))
-    # end
-    # if bounded
-    #     for (idx,c) in enumerate(connections)
-    #         if pmin[idx]>-Inf
-    #             JuMP.@constraint(pm.model, pmin[idx] .<= vr[c]*crg[c]  + vi[c]*cig[c])
-    #         end
-    #         if pmax[idx]< Inf
-    #             JuMP.@constraint(pm.model, pmax[idx] .>= vr[c]*crg[c]  + vi[c]*cig[c])
-    #         end
-    #         if qmin[idx]>-Inf
-    #             JuMP.@constraint(pm.model, qmin[idx] .<= vi[c]*crg[c]  - vr[c]*cig[c])
-    #         end
-    #         if qmax[idx]< Inf
-    #             JuMP.@constraint(pm.model, qmax[idx] .>= vi[c]*crg[c]  - vr[c]*cig[c])
-    #         end
-    #     end
-    # end
+
     _PMD.var(pm, n, :crg_bus)[id] = crg[n]
     _PMD.var(pm, n, :cig_bus)[id] = cig[n]
-    # _PMD.var(pm, n, :pg)[id] = JuMP.Containers.DenseAxisArray(pg, connections)
-    # _PMD.var(pm, n, :qg)[id] = JuMP.Containers.DenseAxisArray(qg, connections)
-
     if report
         sol(pm, n, :gen, id)[:crg_bus] = _PMD.var(pm, n, :crg_bus, id)
         sol(pm, n, :gen, id)[:cig_bus] = _PMD.var(pm, n, :cig_bus, id)
 
-        # sol(pm, n, :gen, id)[:pg] = JuMP.Containers.DenseAxisArray(pg, connections)
-        # sol(pm, n, :gen, id)[:qg] = JuMP.Containers.DenseAxisArray(qg, connections)
     end
 end
 
@@ -442,8 +302,12 @@ function constraint_mc_gp_load_power_wye(pm::IVRUPowerModel, n::Int, id::Int, bu
     if all(alpha.==0) && all(beta.==0)
         pd=a
         qd=b
+        display("pd $n bus_id $bus_id: $pd \n")
+        display("qd $n bus_id $bus_id: $qd \n")
     end
     for (idx, c) in enumerate(connections)
+            print(idx)
+            print(c)
             JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * pd[idx] 
                                                 == 
                                                 sum(T3.get([n1-1,n2-1,n-1]) *
@@ -451,77 +315,20 @@ function constraint_mc_gp_load_power_wye(pm::IVRUPowerModel, n::Int, id::Int, bu
                                                     for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm))
                                                 )
 
+
             JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * qd[idx]
                                             == 
                                             sum(T3.get([n1-1,n2-1,n-1]) *
                                             (-vr[n1][c]*cid[n2][c]+vi[n1][c]*crd[n2][c])
                                             for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm))
                                             )
-        # else
-        #     JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * pd[1]
-        #                                         == 
-        #                                         sum(T3.get([n1-1,n2-1,n-1]) *
-        #                                             (vr[n1][c]*crd[n2][c]+vi[n1][c]*cid[n2][c])
-        #                                             for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm))
-        #                                         )
-
-        #     JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * qd[1]
-        #                                     == 
-        #                                     sum(T3.get([n1-1,n2-1,n-1]) *
-        #                                     (-vr[n1][c]*cid[n2][c]+vi[n1][c]*crd[n2][c])
-        #                                     for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm))
-        #                                     )
         end
-    
-    #         # display("$a,$b,$alpha,$beta")
-    #         display("load$id")
-            # crd_temp= sum(T3.get([n1-1,n2-1, n3-1, n-1]) *a[idx]*vr[n1][c]*(vms[n2])^(alpha[idx]/2-1)+b[idx]*vi[c]*(vr[c]^2+vi[c]^2)^(beta[idx]/2 -1))
-    #         push!(crd, JuMP.@NLexpression(pm.model,
-    #           a[idx]*vr[1][c]*(vr[1][c]^2+vi[1][c]^2)^(alpha[idx]/2-1)
-    #          +b[idx]*vi[1][c]*(vr[1][c]^2+vi[1][c]^2)^(beta[idx]/2 -1)
-    #         ))
-    #         push!(cid, JuMP.@NLexpression(pm.model,
-    #              a[idx]*vi[c]*(vr[c]^2+vi[c]^2)^(alpha[idx]/2-1)
-    #         -b[idx]*vr[c]*(vr[c]^2+vi[c]^2)^(beta[idx]/2 -1)
-    #         ))
-       
-    # end
-    # var(pm, nw, :crd_bus)[id] = JuMP.Containers.DenseAxisArray(crd, connections)
-    # var(pm, nw, :cid_bus)[id] = JuMP.Containers.DenseAxisArray(cid, connections)
-    # display(var(pm, nw, :crd_bus)[id])
-
-    # pd = Vector{JuMP.NonlinearExpression}([])
-    # qd = Vector{JuMP.NonlinearExpression}([])
-
-    ## crd = Dict(nw => _PMD.var(pm, nw, :crd, id) for nw in _PMD.nw_ids(pm))
-    ## cid = Dict(nw => _PMD.var(pm, nw, :cid, id) for nw in _PMD.nw_ids(pm))
-        # for (idx,c) in enumerate(connections)
-        #     pd_bus_temp= sum(T3.get([n1-1,n2-1,n-1]) * (vr[n1][c]*crd[n2][c]+vi[n1][c]*cid[n2][c])
-        #                     for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm)) * (1/T2.get([n-1,n-1]))
-        #     qd_bus_temp= sum(T3.get([n1-1,n2-1,n-1]) * (-vr[n1][c]*cid[n2][c]+vi[n1][c]*crd[n2][c]) 
-        #                     for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm)) * (1/T2.get([n-1,n-1]))
-        #     # if all(alpha.==0) && all(beta.==0)
-        #     #     pd_bus_temp = a
-        #     #     qd_bus_temp = b
-           
-        #     push!(pd, JuMP.@NLexpression(pm.model,  pd_bus_temp))
-        #     push!(qd, JuMP.@NLexpression(pm.model, qd_bus_temp))
-        #     # end
-        # end
-
-        # pd = Vector{JuMP.NonlinearExpression}([])
-        # qd = Vector{JuMP.NonlinearExpression}([])
        
         _PMD.var(pm, n, :crd_bus)[id] = crd[n]
         _PMD.var(pm, n, :cid_bus)[id] = cid[n]
     if report
-        # sol(pm, n, :load, id)[:pd_bus] = JuMP.Containers.DenseAxisArray(pd, connections)
-        # sol(pm, n, :load, id)[:qd_bus] = JuMP.Containers.DenseAxisArray(qd, connections)
-
         sol(pm, n, :load, id)[:crd_bus] = _PMD.var(pm, n, :crd_bus, id)
         sol(pm, n, :load, id)[:cid_bus] = _PMD.var(pm, n, :cid_bus, id)
-        # sol(pm, n, :load, id)[:pd] = JuMP.Containers.DenseAxisArray(pd, connections)
-        # sol(pm, n, :load, id)[:qd] = JuMP.Containers.DenseAxisArray(qd, connections)
     end
 end
 

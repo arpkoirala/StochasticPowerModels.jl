@@ -45,7 +45,9 @@ function build_sopf_iv_mc(pm::AbstractUnbalancedPowerModel)
 
     
     for i in _PMD.ids(pm, :bus, nw=1)
-        constraint_mc_cc_bus_voltage_magnitude_squared(pm, i, nw=1)
+        if i!=2
+            constraint_mc_cc_bus_voltage_magnitude_squared(pm, i, nw=1)
+        end
     end
 
     for b in _PMD.ids(pm, :branch, nw=1)
@@ -73,7 +75,6 @@ function build_sopf_iv_mc(pm::AbstractUnbalancedPowerModel)
         
         for i in _PMD.ids(pm, :bus, nw=n)
             constraint_mc_gp_current_balance(pm, i, nw=n)
-
             constraint_mc_gp_bus_voltage_magnitude_squared(pm, i, nw=n)
             
         end
@@ -92,4 +93,6 @@ function build_sopf_iv_mc(pm::AbstractUnbalancedPowerModel)
     end
 
     objective_mc_min_expected_generation_cost(pm)
+
+    # print(pm.model)
 end

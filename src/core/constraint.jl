@@ -27,30 +27,43 @@ function constraint_mc_bus_voltage_ref(pm::AbstractUnbalancedACRModel, n::Int, i
 
     for (idx, t) in enumerate(_PMD.ref(pm, n, :bus, i)["terminals"])
         if n==1
-            display("I am here $vr $n")
-            if va_ref[t] == pi/2
-                JuMP.@constraint(pm.model, vr[t] == 0)
-                JuMP.@constraint(pm.model, vi[t] >= 0)
-            elseif va_ref[t] == -pi/2
-                JuMP.@constraint(pm.model, vr[t] == 0)
-                JuMP.@constraint(pm.model, vi[t] <= 0)
-            elseif va_ref[t] == 0
-                JuMP.@constraint(pm.model, vr[t] >= 0)
-                JuMP.@constraint(pm.model, vi[t] == 0)
-            elseif va_ref[t] == pi
-                JuMP.@constraint(pm.model, vr[t] >= 0)
-                JuMP.@constraint(pm.model, vi[t] == 0)
-            else
-                JuMP.@constraint(pm.model, vi[t] == tan(va_ref[t])*vr[t])
-                # va_ref also implies a sign for vr, vi
-                if 0<=va_ref[t] && va_ref[t] <= pi
-                    JuMP.@constraint(pm.model, vi[t] >= 0)
+            display(va_ref[t])
+            display("terminal $t \n")
+            # if va_ref[t] == pi/2
+            #     JuMP.@constraint(pm.model, vr[t] == 0)
+            #     JuMP.@constraint(pm.model, vi[t] >= 0)
+            # elseif va_ref[t] == -pi/2
+            #     JuMP.@constraint(pm.model, vr[t] == 0)
+            #     JuMP.@constraint(pm.model, vi[t] <= 0)
+            # elseif va_ref[t] == 0
+            #     JuMP.@constraint(pm.model, vr[t] >= 0)
+            #     JuMP.@constraint(pm.model, vi[t] == 0)
+            # elseif va_ref[t] == pi
+            #     JuMP.@constraint(pm.model, vr[t] >= 0)
+            #     JuMP.@constraint(pm.model, vi[t] == 0)
+            # else
+                if t==1
+                    JuMP.fix(vr[t], 1; force=true)
+                    
+                    JuMP.fix(vi[t], 0; force=true)
+                    print("\n Printing ref $vi[t]")
+                elseif t==2
+                    JuMP.fix(vr[t],-0.5; force=true)
+                    print("\n Printing ref $vr[t]")
+                    JuMP.fix(vi[t], -sqrt(3)/2; force=true)
                 else
-                    JuMP.@constraint(pm.model, vi[t] <= 0)
+                    JuMP.fix(vr[t],-0.5; force=true)
+                    JuMP.fix(vi[t],sqrt(3)/2; force=true)
                 end
-            end
+
+                # va_ref also implies a sign for vr, vi
+                # if 0<=va_ref[t] && va_ref[t] <= pi
+                #     JuMP.@constraint(pm.model, vi[t] >= 0)
+                # else
+                #     JuMP.@constraint(pm.model, vi[t] <= 0)
+                # end
+            # end
         else
-            display("I am here $vr")
             JuMP.fix(vr[t], 0; force=true)
             JuMP.fix(vi[t], 0; force=true)
         end
@@ -180,19 +193,20 @@ end
 ## bus
 ""
 function constraint_mc_cc_bus_voltage_magnitude_squared(pm::AbstractUnbalancedACRModel, i, connections, vmin, vmax, λmin, λmax, T2, mop)
-    vms  = [_PMD.var(pm, n, :vms, i) for n in sorted_nw_ids(pm)]
+    
     for (idx, c) in enumerate(connections)
         # bounds on the expectation
-        JuMP.@constraint(pm.model, vmin[c]^2 <= _PCE.mean(vms[c], mop))
-        JuMP.@constraint(pm.model, _PCE.mean(vms[c], mop) <= vmax[c]^2)
+        vms  = [_PMD.var(pm, n, :vms, i)[c] for n in sorted_nw_ids(pm)]
+        # JuMP.@constraint(pm.model, vmin[c]^2 <= _PCE.mean(vms[c], mop))
+        JuMP.@constraint(pm.model, _PCE.mean(vms, mop) <= vmax[c]^2)
         # chance constraint bounds
-        JuMP.@constraint(pm.model,  _PCE.var(vms[c], T2)
+        JuMP.@constraint(pm.model,  _PCE.var(vms, T2)
                                     <=
-                                ((_PCE.mean(vms[c], mop) - vmin[c]^2) / λmin)^2
+                                ((_PCE.mean(vms, mop) - vmin[c]^2) / λmin)^2
                         )
-        JuMP.@constraint(pm.model,  _PCE.var(vms[c], T2)
+        JuMP.@constraint(pm.model,  _PCE.var(vms, T2)
                                 <=
-                                    ((vmax[c]^2 - _PCE.mean(vms[c], mop)) / λmax)^2
+                                    ((vmax[c]^2 - _PCE.mean(vms, mop)) / λmax)^2
                         )
     end
 end
@@ -200,16 +214,18 @@ end
 ## branch
 ""
 function constraint_mc_cc_branch_series_current_magnitude_squared(pm::AbstractUnbalancedACRModel, b,connections, cmax, λcmax, T2, mop)
-    cmss = [_PMD.var(pm, nw, :cmss, b) for nw in sorted_nw_ids(pm)]
-    display("current")
+    
+
     if cmax[1]!=Inf
         for (idx, c) in enumerate(connections)
+            cmss = [_PMD.var(pm, nw, :cmss, b)[c] for nw in sorted_nw_ids(pm)]
+            display("current $(_PCE.var(cmss,T2))")
         # bound on the expectation
-            JuMP.@constraint(pm.model,  _PCE.mean(cmss[c], mop) <= cmax[c]^2)
+            JuMP.@constraint(pm.model,  _PCE.mean(cmss, mop) <= cmax[c]^2)
             # chance constraint bounds
-            JuMP.@constraint(pm.model,  _PCE.var(cmss[c],T2)
+            JuMP.@constraint(pm.model,  _PCE.var(cmss,T2)
                                         <=
-                                        ((cmax[c]^2 - _PCE.mean(cmss[c],mop)) / λcmax)^2
+                                        ((cmax[c]^2 - _PCE.mean(cmss,mop)) / λcmax)^2
                             )
         end
     end
@@ -218,21 +234,22 @@ end
 ## generator
 ""
 function constraint_mc_cc_gen_power_real(pm::AbstractUnbalancedACRModel, g, connections, pmin, pmax, λmin, λmax, T2, mop)
-    pg  = [_PMD.var(pm, nw, :pg, g) for nw in sorted_nw_ids(pm)]
+    
     display("gen")
     for (idx, c) in enumerate(connections)
+        pg  = [_PMD.var(pm, nw, :pg, g)[c] for nw in sorted_nw_ids(pm)]
         # bounds on the expectation 
         display(pg[c])
-        JuMP.@constraint(pm.model,  pmin[c] <= _PCE.mean(pg[c], mop))
-        JuMP.@constraint(pm.model,  _PCE.mean(pg[c], mop) <= pmax[c])
+        JuMP.@constraint(pm.model,  pmin[c] <= _PCE.mean(pg, mop))
+        JuMP.@constraint(pm.model,  _PCE.mean(pg, mop) <= pmax[c])
         # chance constraint bounds
-        JuMP.@constraint(pm.model,  _PCE.var(pg[c], T2)
+        JuMP.@constraint(pm.model,  _PCE.var(pg, T2)
                                     <=
-                                    ((_PCE.mean(pg[c], mop) - pmin[c]) / λmin)^2
+                                    ((_PCE.mean(pg, mop) - pmin[c]) / λmin)^2
                     )
         JuMP.@constraint(pm.model,  _PCE.var(pg[c], T2)
                                     <=
-                                    ((pmax[c] - _PCE.mean(pg[c], mop)) / λmax)^2
+                                    ((pmax[c] - _PCE.mean(pg, mop)) / λmax)^2
                     )
     end
 end

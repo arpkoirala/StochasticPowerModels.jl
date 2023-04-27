@@ -93,16 +93,16 @@ histogram!(p_sample_1)
 histogram!(p_sample_2)
 
 # obtain an kernel density estimate of the generator active power output variable
-# pg_density = _PC.density(result_ivr, "gen", 1, "pg"; sample_size=10) 
+pg_density = _PC.density(result_ivr, "gen", 1, "pg"; sample_size=10) 
 
-# it = Iterators.product(ntuple(_ -> [1.6,2], 11)...)
-# p=collect(it);
-# d=[]
-# for x in p
-#     if sum(x)==20
-#         push!(d, [l for l in x])
-#     end
-# end
+it = Iterators.product(ntuple(_ -> [1.9,2], 9)...)
+p=collect(it);
+d=[]
+for x in p
+    if sum(x)==17.6
+        push!(d, [l for l in x])
+    end
+end
 
-# # e=DataFrame(d)
-# writedlm("C:\\Users\\karpan\\Documents\\GitHub_ak\\HostingCapacityLVDS\\combination2.csv", d, ',')
+# e=DataFrame(d)
+writedlm("C:\\Users\\karpan\\Documents\\GitHub_ak\\HostingCapacityLVDS\\combination4.csv", d, ',')

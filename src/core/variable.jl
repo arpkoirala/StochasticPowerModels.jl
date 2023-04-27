@@ -14,13 +14,6 @@ function variable_bus_voltage(pm::AbstractACRModel; nw::Int=nw_id_default, bound
 
     variable_bus_voltage_magnitude_squared(pm, nw=nw, bounded=bounded, report=report; kwargs...)
 end
-""
-function variable_mc_bus_voltage(pm::AbstractUnbalancedACRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true, kwargs...)
-    _PMD.variable_mc_bus_voltage_real(pm, nw=nw, bounded=bounded, report=report; kwargs...)
-    _PMD.variable_mc_bus_voltage_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
-
-    variable_mc_bus_voltage_magnitude_squared(pm, nw=nw, bounded=bounded, report=report; kwargs...)
-end
 "variable: `vms[i]` for `i` in `bus`"
 function variable_bus_voltage_magnitude_squared(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
     vms = _PM.var(pm, nw)[:vms] = JuMP.@variable(pm.model,
@@ -37,6 +30,14 @@ function variable_bus_voltage_magnitude_squared(pm::AbstractPowerModel; nw::Int=
 
     report && _PM.sol_component_value(pm, nw, :bus, :vms, _PM.ids(pm, nw, :bus), vms)
 end
+""
+function variable_mc_bus_voltage(pm::AbstractUnbalancedACRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true, kwargs...)
+    _PMD.variable_mc_bus_voltage_real(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    _PMD.variable_mc_bus_voltage_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+
+    variable_mc_bus_voltage_magnitude_squared(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+end
+
 
 "variable: `vms[i]` for `i` in `bus`"
 function variable_mc_bus_voltage_magnitude_squared(pm::AbstractUnbalancedPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
@@ -51,8 +52,8 @@ function variable_mc_bus_voltage_magnitude_squared(pm::AbstractUnbalancedPowerMo
         for (i, bus) in _PMD.ref(pm, nw, :bus)
             if haskey(bus, "vmax")
                 for (idx, t) in enumerate(terminals[i])
-                    JuMP.set_lower_bound(vms[i][t], -2.0 * bus["vmax"][idx]^2)
-                    JuMP.set_upper_bound(vms[i][t],  2.0 * bus["vmax"][idx]^2)
+                    JuMP.set_lower_bound(vms[i][t], 0 * bus["vmax"][idx]^2)
+                    # JuMP.set_upper_bound(vms[i][t],  2.0 * bus["vmax"][idx]^2)
         
                 end
             end
@@ -121,9 +122,10 @@ function variable_mc_branch_series_current_magnitude_squared(pm::AbstractUnbalan
             # b = branch[l]
             # ub = Inf
             cmax = _PMD._calc_branch_series_current_max(ref(pm, nw, :branch, l), ref(pm, nw, :bus, i), ref(pm, nw, :bus, j))
+            print("Cmax for branch $l is $cmax")
             for (idx,c) in enumerate(connections[(l,i,j)])
                 set_upper_bound(cmss[l][c],  cmax[idx]^2)
-                set_lower_bound(cmss[l][c], -cmax[idx]^2)
+                set_lower_bound(cmss[l][c], 0*cmax[idx]^2)
             end
             # if haskey(b, "rate_a")
             #     rate = b["rate_a"] * b["tap"]
