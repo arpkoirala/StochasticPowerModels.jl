@@ -248,7 +248,8 @@ function constraint_mc_gp_branch_series_current_magnitude_squared(pm::AbstractUn
                                     (csr[n1][c] * csr[n2][c] + csi[n1][c] * csi[n2][c]) 
                                     for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm))
                     )
-                                    end
+
+    end
 end
 
 ## generator
@@ -302,8 +303,6 @@ function constraint_mc_gp_load_power_wye(pm::IVRUPowerModel, n::Int, id::Int, bu
     if all(alpha.==0) && all(beta.==0)
         pd=a
         qd=b
-        display("pd $n bus_id $bus_id: $pd \n")
-        display("qd $n bus_id $bus_id: $qd \n")
     end
     for (idx, c) in enumerate(connections)
             print(idx)

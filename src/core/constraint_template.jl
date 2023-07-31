@@ -184,11 +184,11 @@ function constraint_mc_gp_gen_power(pm::AbstractUnbalancedPowerModel, id::Int; n
     pmax = get(generator, "pmax", fill( Inf, N))
     qmin = get(generator, "qmin", fill(-Inf, N))
     qmax = get(generator, "qmax", fill( Inf, N))
-    display(get(generator, "configuration", WYE))
+   
     if get(generator, "configuration", WYE) == WYE
         constraint_mc_gp_generator_power_wye(pm, nw, id, bus["index"], generator["connections"], pmin, pmax, qmin, qmax, T2, T3; report=report, bounded=bounded)
     else
-        constraint_mc_generator_power_delta(pm, nw, id, bus["index"], generator["connections"], pmin, pmax, qmin, qmax, T2, T3; report=report, bounded=bounded)
+        # constraint_mc_generator_power_delta(pm, nw, id, bus["index"], generator["connections"], pmin, pmax, qmin, qmax, T2, T3; report=report, bounded=bounded)
     end
     # constraint_mc_gp_gen_power_real(pm, nw, i, g, T2, T3)
     # constraint_mc_gp_gen_power_imaginary(pm, nw, i, g, T2, T3)
@@ -211,7 +211,7 @@ function constraint_gp_load_power(pm::AbstractPowerModel, l::Int; nw::Int=nw_id_
 end
 
 
-function constraint_mc_gp_load_power(pm::AbstractUnbalancedPowerModel, id::Int; nw::Int=nw_id_default, report::Bool=true)::Nothing
+function constraint_mc_gp_load_power(pm::AbstractUnbalancedPowerModel, id::Int; nw::Int=nw_id_default, report::Bool=true)
     load = ref(pm, nw, :load, id)
     bus = ref(pm, nw,:bus, load["load_bus"])
     
@@ -227,7 +227,7 @@ function constraint_mc_gp_load_power(pm::AbstractUnbalancedPowerModel, id::Int; 
     else
         # constraint_mc_load_power_delta(pm, nw, id, load["load_bus"], load["connections"], a, alpha, b, beta; report=report)
     end
-    nothing
+    # nothing
 end
 
 # chance constraint limit

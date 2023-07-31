@@ -13,7 +13,7 @@
 
 using Pkg
 Pkg.activate(".")
-Pkg.instantiate()
+# Pkg.instantiate()
 using JuMP
 using Ipopt
 using PowerModels
@@ -55,10 +55,10 @@ data["bus"]["2"]["vmin"]= [1.0, 1.0, 1.0]
 [data["bus"]["$i"]["λvmin"]= 1.65 for i=1:length(data["bus"])]
 [data["bus"]["$i"]["λvmax"]= 1.65 for i=1:length(data["bus"])]
 [data["branch"]["$i"]["λcmax"]= 1.65 for i=1:length(data["branch"])]
-[data["gen"]["$i"]["pgmin"]= [0, 0, 0]./ratio for i=1:length(data["gen"])]
-[data["gen"]["$i"]["pgmax"]= [20, 20, 20]./ratio for i=1:length(data["gen"])]
-[data["gen"]["$i"]["qgmin"]= [-10, -10, -10]./ratio for i=1:length(data["gen"])]
-[data["gen"]["$i"]["qgmax"]= [10, 10, 10]./ratio for i=1:length(data["gen"])]
+[data["gen"]["$i"]["pgmin"]= [-1, -1, -1]./ratio for i=1:length(data["gen"])]
+[data["gen"]["$i"]["pgmax"]= [200, 200, 200]./ratio for i=1:length(data["gen"])]
+[data["gen"]["$i"]["qgmin"]= [-100, -100, -100]./ratio for i=1:length(data["gen"])]
+[data["gen"]["$i"]["qgmax"]= [100, 100, 100]./ratio for i=1:length(data["gen"])]
 [data["gen"]["$i"]["λpmax"]= 1.65 for i=1:length(data["gen"])]
 [data["gen"]["$i"]["λpmin"]= 1.65 for i=1:length(data["gen"])]
 [data["gen"]["$i"]["λqmax"]= 1.65 for i=1:length(data["gen"])]
@@ -70,16 +70,16 @@ sdata = SPM.build_stochastic_data_mc_dss(data,deg)
 result_hc= PMD.solve_mc_model(sdata, IVRUPowerModel, ipopt_solver, SPM.build_sopf_iv_mc; multinetwork=true, solution_processors=[SPM.sol_data_model!])
 result_hc["mop"] = sdata["mop"]
 
-v_sample_1 = sample(result_hc, "bus", 1, "vms", phase=1; sample_size=1000)
-v_sample_2 = sample(result_hc, "bus", 1, "vms", phase=2; sample_size=1000) 
-v_sample_3 = sample(result_hc, "bus", 1, "vms", phase=3; sample_size=1000)
+v_sample_1 = sample(result_hc, "bus", 3, "vms", phase=1; sample_size=1000)
+v_sample_2 = sample(result_hc, "bus", 3, "vms", phase=2; sample_size=1000) 
+v_sample_3 = sample(result_hc, "bus", 3, "vms", phase=3; sample_size=1000)
 
 histogram((v_sample_1))
 histogram!((v_sample_2))
 histogram!((v_sample_3))
 
 
-result = PMD.solve_mc_opf(data, IVRUPowerModel, ipopt_solver)
+# result = PMD.solve_mc_opf(data, IVRUPowerModel, ipopt_solver)
 
 
 # feeder ="Pola/1076069_1274129_mod_configuration.json" #feeder with 7 consumer for test
@@ -116,17 +116,17 @@ result = PMD.solve_mc_opf(data, IVRUPowerModel, ipopt_solver)
 
 
 
-# # p_sample_1 = sample(result_hc, "branch", 6, "cmss", phase=1; sample_size=1000)
-# # p_sample_2 = sample(result_hc, "branch", 6, "cmss", phase=2; sample_size=1000) 
-# # p_sample_3 = sample(result_hc, "branch", 6, "cmss", phase=3; sample_size=1000)
+p_sample_1 = sample(result_hc, "branch", 2, "cmss", phase=1; sample_size=1000)
+p_sample_2 = sample(result_hc, "branch", 2, "cmss", phase=2; sample_size=1000) 
+p_sample_3 = sample(result_hc, "branch", 2, "cmss", phase=3; sample_size=1000)
 
-# # histogram(p_sample_3)
-# # histogram!(p_sample_1)
-# # histogram!(p_sample_2)
+histogram(p_sample_3)
+histogram!(p_sample_1)
+histogram!(p_sample_2)
 
-p_sample_1 = sample(result_hc, "branch", 1, "cmss", phase=1; sample_size=1000)
-p_sample_2 = sample(result_hc, "branch", 1, "cmss", phase=2; sample_size=1000) 
-p_sample_3 = sample(result_hc, "branch", 1, "cmss", phase=3; sample_size=1000)
+p_sample_1 = sample(result_hc, "gen", 1, "pg", phase=1; sample_size=1000)
+p_sample_2 = sample(result_hc, "gen", 1, "pg", phase=2; sample_size=1000) 
+p_sample_3 = sample(result_hc, "gen", 1, "pg", phase=3; sample_size=1000)
 
 histogram(p_sample_3)
 histogram!(p_sample_1)

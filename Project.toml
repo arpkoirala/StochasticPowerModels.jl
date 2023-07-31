@@ -18,7 +18,6 @@ Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
 PolyChaos = "8d666b04-775d-5f6e-b778-5ac7c70f65a3"
 PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
 PowerModelsDistribution = "d7431456-977f-11e9-2de3-97ff7677985e"
-RepresentativePeriodsFinder = "d8a704e0-5cf8-11e9-3a92-a36052b0d072"
 
 [compat]
 CSV = "0.10.2"

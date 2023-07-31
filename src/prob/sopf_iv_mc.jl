@@ -31,9 +31,8 @@ end
 ""
 function build_sopf_iv_mc(pm::AbstractUnbalancedPowerModel)
     for (n, network) in _PMD.nws(pm) 
-        variable_mc_bus_voltage(pm, nw=n)
-
-        variable_mc_branch_current(pm, nw=n)
+        variable_mc_bus_voltage(pm, nw=n, bounded=false)
+        variable_mc_branch_current(pm, nw=n, bounded=false)
         # _PMD.variable_mc_switch_current(pm, nw=n)
         # _PMD.variable_mc_transformer_current(pm, nw=n)
         _PMD.variable_mc_generator_power(pm, nw=n, bounded=false)                             # enforcing bounds alters the objective 
@@ -45,9 +44,7 @@ function build_sopf_iv_mc(pm::AbstractUnbalancedPowerModel)
 
     
     for i in _PMD.ids(pm, :bus, nw=1)
-        if i!=2
             constraint_mc_cc_bus_voltage_magnitude_squared(pm, i, nw=1)
-        end
     end
 
     for b in _PMD.ids(pm, :branch, nw=1)
@@ -87,11 +84,7 @@ function build_sopf_iv_mc(pm::AbstractUnbalancedPowerModel)
              ########
             constraint_mc_gp_branch_series_current_magnitude_squared(pm, b, nw=n)
         end
-
-        
-
     end
-
     objective_mc_min_expected_generation_cost(pm)
 
     # print(pm.model)
