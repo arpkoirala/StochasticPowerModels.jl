@@ -80,6 +80,10 @@ function variable_mc_load_current(pm::AbstractUnbalancedIVRModel; nw::Int=nw_id_
     variable_mc_load_current_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
 end
 
+function variable_mc_pv_current(pm::AbstractUnbalancedIVRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true, kwargs...)
+    variable_mc_pv_current_real(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    variable_mc_pv_current_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+end
 
 """
 	function variable_mc_load_current_real(
@@ -103,6 +107,17 @@ function variable_mc_load_current_real(pm::AbstractUnbalancedIVRModel; nw::Int=n
 end
 
 
+    ""
+function variable_mc_pv_current_real(pm::AbstractUnbalancedIVRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
+    connections = Dict(i => pv["connections"] for (i,pv) in _PMD.ref(pm, nw, :pv))
+    crd_pv = _PMD.var(pm, nw)[:crd_pv] = Dict(i => JuMP.@variable(pm.model,
+            [c in connections[i]], base_name="$(nw)_crd_pv_$(i)",
+            start = comp_start_value(_PMD.ref(pm, nw, :pv, i), "crd_pv_start", c, 0.0)
+        ) for i in ids(pm, nw, :pv)
+        )
+        _PMD.var(pm, nw)[:crd_bus_pv] = Dict{Int, Any}()
+        report && _IM.sol_component_value(pm, pmd_it_sym, nw, :pv, :crd_pv, ids(pm, nw, :pv), crd_pv)
+    end
 """
 	function variable_mc_load_current_imaginary(
 		pm::ExplicitNeutralModels;
@@ -124,7 +139,17 @@ function variable_mc_load_current_imaginary(pm::AbstractUnbalancedIVRModel; nw::
     report && _IM.sol_component_value(pm, pmd_it_sym, nw, :load, :cid, _PMD.ids(pm, nw, :load), cid)
 end
 
-
+""
+function variable_mc_pv_current_imaginary(pm::AbstractUnbalancedIVRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
+    connections = Dict(i => pv["connections"] for (i,pv) in _PMD.ref(pm, nw, :pv))
+    cid_pv = _PMD.var(pm, nw)[:cid_pv] = Dict(i => JuMP.@variable(pm.model,
+            [c in connections[i]], base_name="$(nw)_cid_pv_$(i)",
+            start = comp_start_value(_PMD.ref(pm, nw, :pv, i), "cid_pv_start", c, 0.0)
+        ) for i in ids(pm, nw, :pv)
+    )
+    _PMD.var(pm, nw)[:cid_bus_pv] = Dict{Int, Any}()
+    report && _IM.sol_component_value(pm, pmd_it_sym, nw, :pv, :cid_pv, _PMD.ids(pm, nw, :pv), cid_pv)
+end
 # "variable: `crd[j]` for `j` in `load`"
 # function variable_mc_load_current_real(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
 #     crd = _PM.var(pm, nw)[:crd] = JuMP.@variable(pm.model,
@@ -186,7 +211,7 @@ end
     # general constraints
 ## bus
 ""
-function constraint_mc_gp_current_balance(pm::AbstractUnbalancedIVRModel, n::Int, i, terminals::Vector{Int}, grounded::Vector{Bool}, bus_arcs::Vector{Tuple{Tuple{Int,Int,Int},Vector{Int}}}, bus_gens::Vector{Tuple{Int,Vector{Int}}}, bus_loads::Vector{Tuple{Int,Vector{Int}}}, bus_shunts::Vector{Tuple{Int,Vector{Int}}})
+function constraint_mc_gp_current_balance(pm::AbstractUnbalancedIVRModel, n::Int, i, terminals::Vector{Int}, grounded::Vector{Bool}, bus_arcs::Vector{Tuple{Tuple{Int,Int,Int},Vector{Int}}}, bus_gens::Vector{Tuple{Int,Vector{Int}}}, bus_loads::Vector{Tuple{Int,Vector{Int}}}, bus_shunts::Vector{Tuple{Int,Vector{Int}}},bus_pvs::Vector{Tuple{Int,Vector{Int}}})
     vr = _PMD.var(pm, n, :vr, i)
     vi = _PMD.var(pm, n, :vi, i)
     
@@ -196,6 +221,11 @@ function constraint_mc_gp_current_balance(pm::AbstractUnbalancedIVRModel, n::Int
     cid   = get(_PMD.var(pm, n),   :cid_bus, Dict()); _PMD._check_var_keys(cid, bus_loads, "imaginary current", "load")
     crg   = get(_PMD.var(pm, n),   :crg_bus, Dict()); _PMD._check_var_keys(crg, bus_gens, "real current", "generator")
     cig   = get(_PMD.var(pm, n),   :cig_bus, Dict()); _PMD._check_var_keys(cig, bus_gens, "imaginary current", "generator")
+
+    crd_pv   = get(_PMD.var(pm, n),   :crd_pv, Dict()); _PMD._check_var_keys(crd_pv, bus_pvs, "real current", "pv")
+    cid_pv   = get(_PMD.var(pm, n),   :cid_pv, Dict()); _PMD._check_var_keys(cid_pv, bus_pvs, "imaginary current", "pv")
+
+    # p_size = _PMD.var(pm, 1, :p_size)
     # crs   = get(_PMD.var(pm, n),   :crs, Dict()); _PMD._check_var_keys(crs, bus_storage, "real currentr", "storage")
     # cis   = get(_PMD.var(pm, n),   :cis, Dict()); _PMD._check_var_keys(cis, bus_storage, "imaginary current", "storage")
     # crsw  = get(_PMD.var(pm, n),  :crsw, Dict()); _PMD._check_var_keys(crsw, bus_arcs_sw, "real current", "switch")
@@ -219,6 +249,7 @@ function constraint_mc_gp_current_balance(pm::AbstractUnbalancedIVRModel, n::Int
                                       sum(crg[g][t]         for (g, conns) in bus_gens if t in conns)
                                     #- sum(crs[s][t]         for (s, conns) in bus_storage if t in conns)
                                     - sum(crd[d][t]         for (d, conns) in bus_loads if t in conns)
+                                    + sum(crd_pv[p][t]         for (p, conns) in bus_pvs if t in conns)
                                     - sum( Gt[idx,jdx]*vr[u] -Bt[idx,jdx]*vi[u] for (jdx,u) in ungrounded_terminals) # shunts
                                     )
     JuMP.@constraint(pm.model, #[ci, cid, cig,  vi], #cis, cisw, cit,
@@ -229,6 +260,7 @@ function constraint_mc_gp_current_balance(pm::AbstractUnbalancedIVRModel, n::Int
                                       sum(cig[g][t]         for (g, conns) in bus_gens if t in conns)
                                     # - sum(cis[s][t]         for (s, conns) in bus_storage if t in conns)
                                     - sum(cid[d][t]         for (d, conns) in bus_loads if t in conns)
+                                    + sum(cid_pv[p][t]         for (p, conns) in bus_pvs if t in conns)
                                     - sum( Gt[idx,jdx]*vi[u] +Bt[idx,jdx]*vr[u] for (jdx,u) in ungrounded_terminals) # shunts
                                     )
     end
@@ -305,8 +337,6 @@ function constraint_mc_gp_load_power_wye(pm::IVRUPowerModel, n::Int, id::Int, bu
         qd=b
     end
     for (idx, c) in enumerate(connections)
-            print(idx)
-            print(c)
             JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * pd[idx] 
                                                 == 
                                                 sum(T3.get([n1-1,n2-1,n-1]) *
@@ -331,6 +361,43 @@ function constraint_mc_gp_load_power_wye(pm::IVRUPowerModel, n::Int, id::Int, bu
     end
 end
 
+## load
+""
+function constraint_mc_gp_pv_power_wye(pm::IVRUPowerModel, n::Int, id::Int, bus_id::Int, connections::Vector{Int}, a::Vector{<:Real}, alpha::Vector{<:Real}, b::Vector{<:Real}, beta::Vector{<:Real}, T2, T3, T4, p_size; report::Bool=true)
+    vr = Dict(nw => _PMD.var(pm, nw, :vr, bus_id) for nw in _PMD.nw_ids(pm))
+    vi = Dict(nw => _PMD.var(pm, nw, :vi, bus_id) for nw in _PMD.nw_ids(pm))
+    vms = Dict(nw => _PMD.var(pm, nw, :vms, bus_id) for nw in _PMD.nw_ids(pm))
+    
+    crd_pv = Dict(nw =>_PMD.var(pm, nw, :crd_pv, id) for nw in _PMD.nw_ids(pm))
+    cid_pv = Dict(nw =>_PMD.var(pm, nw, :cid_pv, id) for nw in _PMD.nw_ids(pm))
+    if all(alpha.==0) && all(beta.==0)
+        pd=a
+        qd=b
+    end
+    for (idx, c) in enumerate(connections)
+            JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * pd[idx] * p_size
+                                                == 
+                                                sum(T3.get([n1-1,n2-1,n-1]) *
+                                                    (vr[n1][c]*crd_pv[n2][c]+vi[n1][c]*cid_pv[n2][c])
+                                                    for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm))
+                                                )
+
+
+            JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * qd[idx] * 0
+                                            == 
+                                            sum(T3.get([n1-1,n2-1,n-1]) *
+                                            (-vr[n1][c]*cid_pv[n2][c]+vi[n1][c]*crd_pv[n2][c])
+                                            for n1 in _PMD.nw_ids(pm), n2 in _PMD.nw_ids(pm))
+                                            )
+        end
+       
+        _PMD.var(pm, n, :crd_bus_pv)[id] = crd_pv[n]
+        _PMD.var(pm, n, :cid_bus_pv)[id] = cid_pv[n]
+    if report
+        sol(pm, n, :pv, id)[:crd_bus_pv] = _PMD.var(pm, n, :crd_bus_pv, id)
+        sol(pm, n, :pv, id)[:cid_bus_pv] = _PMD.var(pm, n, :cid_bus_pv, id)
+    end
+end
 
 function constraint_gp_load_power_real(pm::AbstractUnbalancedIVRModel, n::Int, i, l, pd, T2, T3)
     vr  = Dict(nw => _PM.var(pm, nw, :vr, i) for nw in _PM.nw_ids(pm))

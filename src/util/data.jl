@@ -51,7 +51,7 @@ Specify voltage and power base, voltage base should be the phase-to-ground volta
 of the feeder studied (kV), the power base can be arbitrairly chosen (MW)
 """
 voltage_base = 0.230  # (kV)
-power_base = 0.5  # (MW)
+power_base = 0.001  # (MW)
 Z_base = voltage_base^2/power_base # (Ohm)
 current_base = power_base/(voltage_base*1e-3) # (A)
 
@@ -359,10 +359,10 @@ end;
 network_model["sdata"]= s_dict 
 network_model["curt"]= curt
 
-network_model["PV"]=deepcopy(network_model["load"]);
-[network_model["PV"][d]["μ"]=s_dict[string(length(s_dict))]["pc"] for d in   keys(network_model["PV"])]
-[network_model["PV"][d]["σ"]=s_dict[string(length(s_dict))]["pd"] for d in   keys(network_model["PV"])]
-[network_model["PV"][d]["pd"]=s_dict[string(length(s_dict))]["pd"]/1e6/ power_base / 3 for d in   keys(network_model["PV"])]
+network_model["pv"]=deepcopy(network_model["load"]);
+[network_model["pv"][d]["μ"]=s_dict[string(length(s_dict))]["pc"] for d in   keys(network_model["pv"])]
+[network_model["pv"][d]["σ"]=s_dict[string(length(s_dict))]["pd"] for d in   keys(network_model["pv"])]
+[network_model["pv"][d]["pd"]=s_dict[string(length(s_dict))]["pd"]/1e6/ power_base / 3 for d in   keys(network_model["pv"])]
 return network_model
 end;
 
@@ -460,10 +460,10 @@ network_model["gen"] = Dict{String,Any}("1" => Dict{String,Any}(
 "index"         => 1,
 "cost"          => [20000.0, 1400.0],
 "gen_status"    => 1,
-"qgmax"          => [1.275, 1.275, 1.275],
-"qgmin"          => [-1.275, -1.275, -1.275],
-"pgmax"          => [5, 5, 5],
-"pgmin"          => [-5, -5, -5],
+"qgmax"          => [1.275, 1.275, 1.275]/power_base,
+"qgmin"          => [-1.275, -1.275, -1.275]/power_base,
+"pgmax"          => [1, 1, 1]/power_base,
+"pgmin"          => [-1, -1, -1]/ power_base,
 "ncost"         => 2,
 "λpmin"         => 1.65, #1.03643 ,
 "λpmax"         => 1.65, #1.03643 ,
@@ -557,7 +557,6 @@ devices_json_dict = JSON.parse(io)
     σ  = dist_lv_ts_feeder[in(d[!,"category"][1]).(dist_lv_ts_feeder.cluster),:][!,"upper"][1] 
     cons = convert(Float64,device["yearlyNetConsumption"])
     pd_temp=5e-3
-    print(pd_temp.*500)
     network_model["load"][id_s] = Dict{String,Any}(
         "model"         => POWER,
         "configuration" => configuration=="star" ? WYE : DELTA,
@@ -697,91 +696,91 @@ end;
 network_model["sdata"]= s_dict 
 network_model["curt"]= curt
 
-network_model["PV"]=deepcopy(network_model["load"]);
-[network_model["PV"][d]["μ"]=s_dict[string(length(s_dict))]["pc"] for d in   keys(network_model["PV"])]
-[network_model["PV"][d]["σ"]=s_dict[string(length(s_dict))]["pd"] for d in   keys(network_model["PV"])]
-[network_model["PV"][d]["pd"]=fill(s_dict[string(length(s_dict))]["pd"]/1e6/ power_base,length(network_model["PV"][d]["connections"])) for d in   keys(network_model["PV"])]
+network_model["pv"]=deepcopy(network_model["load"]);
+[network_model["pv"][d]["μ"]=s_dict[string(length(s_dict))]["pc"] for d in   keys(network_model["pv"])]
+[network_model["pv"][d]["σ"]=s_dict[string(length(s_dict))]["pd"] for d in   keys(network_model["pv"])]
+[network_model["pv"][d]["pd"]=fill(s_dict[string(length(s_dict))]["pd"]/1e6/ power_base,length(network_model["pv"][d]["connections"])) for d in   keys(network_model["pv"])]
 return network_model
 end;
 
 
-function build_stochastic_data_mc(data::Dict{String,Any}, deg::Int)
-    # add maximum current
-    for (nb, branch) in data["branch"]
-        f_bus = branch["f_bus"]
-        branch["cmax"] = branch["rate_a"] / data["bus"]["$f_bus"]["vmin"]
-    end
+# function build_stochastic_data_mc(data::Dict{String,Any}, deg::Int)
+#     # add maximum current
+#     for (nb, branch) in data["branch"]
+#         f_bus = branch["f_bus"]
+#         branch["cmax"] = branch["rate_a"] / data["bus"]["$f_bus"]["vmin"]
+#     end
 
-    # build mop
-    opq = [parse_dst(ns[2]["dst"], ns[2]["pa"], ns[2]["pb"], deg) for ns in data["sdata"]]
-    mop = _PCE.MultiOrthoPoly(opq, deg)
+#     # build mop
+#     opq = [parse_dst(ns[2]["dst"], ns[2]["pa"], ns[2]["pb"], deg) for ns in data["sdata"]]
+#     mop = _PCE.MultiOrthoPoly(opq, deg)
 
-    # build load matrix
-    Nd, Npce = length(data["load"]), mop.dim
-    nc= [length(data["load"]["$j"]["connections"]) for j=1:Nd]
-    pd, qd = zeros(Nd, Npce), zeros(Nd, Npce)
-    pd_g, qd_g = zeros(Nd, Npce), zeros(Nd, Npce)
-    for nd in 1:Nd 
-        # reactive power
-        qd[nd,1] = data["load"]["$nd"]["qd"][1]
-        # active power
-        nb = data["load"]["$nd"]["load_bus"]
-        ni = data["load"]["$nd"]["cluster_id"]
-        if ni == 55
-            pd[nd,1] = data["load"]["$nd"]["pd"][1]
-        else
-            base = data["baseMVA"]
-            μ, σ = data["load"]["$nd"]["μ"] /1e3/ base, data["load"]["$nd"]["σ"] /1e3/ base
-            if mop.uni[ni] isa _PCE.GaussOrthoPoly
-                pd[nd,[1,ni+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[ni])
-            else
-                pd[nd,[1,ni+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[ni])
-            end
-        end
+#     # build load matrix
+#     Nd, Npce = length(data["load"]), mop.dim
+#     nc= [length(data["load"]["$j"]["connections"]) for j=1:Nd]
+#     pd, qd = zeros(Nd, Npce), zeros(Nd, Npce)
+#     pd_g, qd_g = zeros(Nd, Npce), zeros(Nd, Npce)
+#     for nd in 1:Nd 
+#         # reactive power
+#         qd[nd,1] = data["load"]["$nd"]["qd"][1]
+#         # active power
+#         nb = data["load"]["$nd"]["load_bus"]
+#         ni = data["load"]["$nd"]["cluster_id"]
+#         if ni == 55
+#             pd[nd,1] = data["load"]["$nd"]["pd"][1]
+#         else
+#             base = data["baseMVA"]
+#             μ, σ = data["load"]["$nd"]["μ"] /1e3/ base, data["load"]["$nd"]["σ"] /1e3/ base
+#             if mop.uni[ni] isa _PCE.GaussOrthoPoly
+#                 pd[nd,[1,ni+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[ni])
+#             else
+#                 pd[nd,[1,ni+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[ni])
+#             end
+#         end
 
-        np = length(opq)
-        base = data["baseMVA"]
-        μ, σ = data["PV"]["1"]["μ"]/1e6 / base , data["PV"]["1"]["σ"] /1e6/ base 
+#         np = length(opq)
+#         base = data["baseMVA"]
+#         μ, σ = data["pv"]["1"]["μ"]/1e6 / base , data["pv"]["1"]["σ"] /1e6/ base 
         
-            if mop.uni[np] isa _PCE.GaussOrthoPoly
-                pd_g[nd,[1,np+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np])
-            else
-                pd_g[nd,[1,np+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np])
-            end
-    end
+#             if mop.uni[np] isa _PCE.GaussOrthoPoly
+#                 pd_g[nd,[1,np+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np])
+#             else
+#                 pd_g[nd,[1,np+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np])
+#             end
+#     end
 
-    # replicate the data
-    sdata = _PM.replicate(data, Npce)
+#     # replicate the data
+#     sdata = _PM.replicate(data, Npce)
 
-    # add the stochastic data 
-    sdata["T2"] = _PCE.Tensor(2,mop)
-    sdata["T3"] = _PCE.Tensor(3,mop)
-    sdata["T4"] = _PCE.Tensor(4,mop)
-    sdata["mop"] = mop
-    for nw in 1:Npce, nd in 1:Nd
-        if nc[nd] == 1
-            sdata["nw"]["$nw"]["load"]["$nd"]["pd"][1] = pd[nd,nw]
-            sdata["nw"]["$nw"]["load"]["$nd"]["qd"][1] = qd[nd,nw]
-        else
-            [sdata["nw"]["$nw"]["load"]["$nd"]["pd"][j] = pd[nd,nw]/3 for j=1:nc[nd]]
-            [sdata["nw"]["$nw"]["load"]["$nd"]["qd"][j] = qd[nd,nw]/3 for j=1:nc[nd]]
-        end
+#     # add the stochastic data 
+#     sdata["T2"] = _PCE.Tensor(2,mop)
+#     sdata["T3"] = _PCE.Tensor(3,mop)
+#     sdata["T4"] = _PCE.Tensor(4,mop)
+#     sdata["mop"] = mop
+#     for nw in 1:Npce, nd in 1:Nd
+#         if nc[nd] == 1
+#             sdata["nw"]["$nw"]["load"]["$nd"]["pd"][1] = pd[nd,nw]
+#             sdata["nw"]["$nw"]["load"]["$nd"]["qd"][1] = qd[nd,nw]
+#         else
+#             [sdata["nw"]["$nw"]["load"]["$nd"]["pd"][j] = pd[nd,nw]/3 for j=1:nc[nd]]
+#             [sdata["nw"]["$nw"]["load"]["$nd"]["qd"][j] = qd[nd,nw]/3 for j=1:nc[nd]]
+#         end
 
-    end
-    for nw in 1:Npce, nd in 1:Nd
-        if nc[nd] == 1
-            sdata["nw"]["$nw"]["PV"]["$nd"]["pd"][1] = pd_g[nd,nw]
-            sdata["nw"]["$nw"]["PV"]["$nd"]["qd"][1] = qd_g[nd,nw]
-        else
-            [sdata["nw"]["$nw"]["PV"]["$nd"]["pd"][j] = pd[nd,nw]/3 for j=1:nc[nd]]
-            [sdata["nw"]["$nw"]["PV"]["$nd"]["qd"][j] = qd[nd,nw]/3 for j=1:nc[nd]]
-        end
+#     end
+#     for nw in 1:Npce, nd in 1:Nd
+#         if nc[nd] == 1
+#             sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][1] = pd_g[nd,nw]
+#             sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][1] = qd_g[nd,nw]
+#         else
+#             [sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][j] = pd[nd,nw]/3 for j=1:nc[nd]]
+#             [sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][j] = qd[nd,nw]/3 for j=1:nc[nd]]
+#         end
 
-    end
-    sdata["data_model"] =data["data_model"]
-    [sdata["nw"]["$k"]["per_unit"] = data["per_unit"] for k=1:length(sdata["nw"])]
-    return sdata
-end
+#     end
+#     sdata["data_model"] =data["data_model"]
+#     [sdata["nw"]["$k"]["per_unit"] = data["per_unit"] for k=1:length(sdata["nw"])]
+#     return sdata
+# end
 
 function build_stochastic_data_mc_dss(data, deg::Int)
 
@@ -847,7 +846,7 @@ function build_stochastic_data_mc_dss(data, deg::Int)
 #For adding PV
         # np = length(opq)
         # base = data["baseMVA"]
-        # μ, σ = data["PV"]["1"]["μ"]/1e6 / base , data["PV"]["1"]["σ"] /1e6/ base 
+        # μ, σ = data["pv"]["1"]["μ"]/1e6 / base , data["pv"]["1"]["σ"] /1e6/ base 
         
         #     if mop.uni[np] isa _PCE.GaussOrthoPoly
         #         pd_g[nd,[1,np+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np])
@@ -876,14 +875,214 @@ function build_stochastic_data_mc_dss(data, deg::Int)
     end
     # for nw in 1:Npce, nd in 1:Nd
     #     if nc[nd] == 1
-    #         sdata["nw"]["$nw"]["PV"]["$nd"]["pd"][1] = pd_g[nd,nw]
-    #         sdata["nw"]["$nw"]["PV"]["$nd"]["qd"][1] = qd_g[nd,nw]
+    #         sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][1] = pd_g[nd,nw]
+    #         sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][1] = qd_g[nd,nw]
     #     else
-    #         [sdata["nw"]["$nw"]["PV"]["$nd"]["pd"][j] = pd[nd,nw]/3 for j=1:nc[nd]]
-    #         [sdata["nw"]["$nw"]["PV"]["$nd"]["qd"][j] = qd[nd,nw]/3 for j=1:nc[nd]]
+    #         [sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][j] = pd[nd,nw]/3 for j=1:nc[nd]]
+    #         [sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][j] = qd[nd,nw]/3 for j=1:nc[nd]]
     #     end
 
     # end
+    sdata["data_model"] =data["data_model"]
+    [sdata["nw"]["$k"]["per_unit"] = data["per_unit"] for k=1:length(sdata["nw"])]
+    return sdata
+end
+
+function build_stochastic_data_mc(data::Dict{String,Any}, deg::Int)
+    # add maximum current
+    for (nb, branch) in data["branch"]
+        f_bus = branch["f_bus"]
+        branch["cmax"] = branch["rate_a"] / data["bus"]["$f_bus"]["vmin"]
+    end
+
+    # build mop
+    opq = [parse_dst(ns[2]["dst"], ns[2]["pa"], ns[2]["pb"], deg) for ns in data["sdata"]]
+    mop = _PCE.MultiOrthoPoly(opq, deg)
+
+    # build load matrix
+    Nd, Npce = length(data["load"]), mop.dim
+    nc= [length(data["load"]["$j"]["connections"]) for j=1:Nd]
+    pd, qd = zeros(Nd, Npce), zeros(Nd, Npce)
+    pd_g, qd_g = zeros(Nd, Npce), zeros(Nd, Npce)
+    for nd in 1:Nd 
+        # reactive power
+        qd[nd,1] = data["load"]["$nd"]["qd"][1]
+        # active power
+        nb = data["load"]["$nd"]["load_bus"]
+        ni = data["load"]["$nd"]["cluster_id"]
+        if ni == 55
+            pd[nd,1] = data["load"]["$nd"]["pd"][1]
+        else
+            base = data["baseMVA"]
+            μ, σ = data["load"]["$nd"]["μ"] /1e3/ base, data["load"]["$nd"]["σ"] /1e3/ base
+            if mop.uni[ni] isa _PCE.GaussOrthoPoly
+                pd[nd,[1,ni+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[ni])
+            else
+                pd[nd,[1,ni+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[ni])
+            end
+        end
+
+        np = length(opq)
+        base = data["baseMVA"]
+        μ, σ = data["pv"]["1"]["μ"]/1e6 / base , data["pv"]["1"]["σ"] /1e6/ base 
+        
+            if mop.uni[np] isa _PCE.GaussOrthoPoly
+                pd_g[nd,[1,np+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np])
+            else
+                pd_g[nd,[1,np+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np])
+            end
+    end
+
+    # replicate the data
+    sdata = _PM.replicate(data, Npce)
+
+    # add the stochastic data 
+    sdata["T2"] = _PCE.Tensor(2,mop)
+    sdata["T3"] = _PCE.Tensor(3,mop)
+    sdata["T4"] = _PCE.Tensor(4,mop)
+    sdata["mop"] = mop
+    for nw in 1:Npce, nd in 1:Nd
+        if nc[nd] == 1
+            sdata["nw"]["$nw"]["load"]["$nd"]["pd"][1] = pd[nd,nw]
+            sdata["nw"]["$nw"]["load"]["$nd"]["qd"][1] = qd[nd,nw]
+        else
+            [sdata["nw"]["$nw"]["load"]["$nd"]["pd"][j] = pd[nd,nw]/3 for j=1:nc[nd]]
+            [sdata["nw"]["$nw"]["load"]["$nd"]["qd"][j] = qd[nd,nw]/3 for j=1:nc[nd]]
+        end
+
+    end
+    for nw in 1:Npce, nd in 1:Nd
+        if nc[nd] == 1
+            sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][1] = pd_g[nd,nw]
+            sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][1] = qd_g[nd,nw]
+        else
+            [sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][j] = pd[nd,nw]/3 for j=1:nc[nd]]
+            [sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][j] = qd[nd,nw]/3 for j=1:nc[nd]]
+        end
+
+    end
+    sdata["data_model"] =data["data_model"]
+    [sdata["nw"]["$k"]["per_unit"] = data["per_unit"] for k=1:length(sdata["nw"])]
+    return sdata
+end
+
+"""sdata for Hosting capacity calculation"""
+function build_stochastic_data_mc_dss_hc(data, deg::Int)
+
+    s_dict=Dict()
+    s=Dict()
+    s["dst"]= "Beta"
+    s["dst_id"] = 1
+    s["pa"]= 0.5
+    s["pb"]= 2
+    s["pc"]= 0.1
+    s["pd"]= 1
+    s_dict["1"] = s
+
+    s=Dict()
+    s["dst"]= "Beta"
+    s["dst_id"] = 2
+    s["pa"]= 1
+    s["pb"]= 2
+    s["pc"]= 0.1
+    s["pd"]= 1
+    s_dict["2"] = s
+
+    #Irradiance Uncertainty
+    s=Dict()
+    s["dst"]= "Beta"
+    s["dst_id"] = 55
+    s["pa"]= 0.19
+    s["pb"]= 0.19
+    s["pc"]= 250/1000
+    s["pd"]= 250/1000+642/1000
+    s_dict["3"] = s
+    
+    data["sdata"]=s_dict
+    data["load"]["1"]["cluster_id"]=1
+    data["load"]["2"]["cluster_id"]=1
+    data["load"]["3"]["cluster_id"]=2
+    [data["pv"]["$j"]["cluster_id"]=55 for j=1:length(data["pv"])]
+
+
+
+    opq = [parse_dst(ns[2]["dst"], ns[2]["pa"], ns[2]["pb"], deg) for ns in data["sdata"]]
+    mop = _PCE.MultiOrthoPoly(opq, deg)
+
+    # add maximum current
+    for (nb, branch) in data["branch"]
+        f_bus = branch["f_bus"]
+        branch["cmax"] = branch["c_rating_a"] ./ data["bus"]["$f_bus"]["vmin"]
+    end
+
+    # build mop
+
+    # build load matrix
+    Nd, Npce = length(data["load"]), mop.dim
+    nc= [length(data["load"]["$j"]["connections"]) for j=1:Nd]
+    pd, qd = zeros(Nd, Npce), zeros(Nd, Npce)
+    pd_g, qd_g = zeros(Nd, Npce), zeros(Nd, Npce)
+    for nd in 1:Nd 
+        
+        # active power
+        nb = data["load"]["$nd"]["load_bus"]
+        ni = data["load"]["$nd"]["cluster_id"]
+        qd[nd,1] = data["load"]["$nd"]["qd"][1]
+        if ni == 56
+            pd[nd,1] =  data["load"]["$nd"]["pd"]
+            # reactive power
+        else
+            # base = data["baseMVA"]
+            μ, σ = data["sdata"]["$ni"]["pc"], data["sdata"]["$ni"]["pd"]*data["load"]["$nd"]["pd"][1]
+            if mop.uni[ni] isa _PCE.GaussOrthoPoly
+                pd[nd,[1,ni+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[ni])
+            else
+                pd[nd,[1,ni+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[ni])
+            end
+        end
+#For adding pv
+        np = length(opq)
+        # base = data["baseMVA"]
+        ni = data["pv"]["$nd"]["cluster_id"]
+        if ni==55
+            μ, σ = data["sdata"]["$np"]["pc"], data["sdata"]["$np"]["pd"]
+        end
+        
+            if mop.uni[np] isa _PCE.GaussOrthoPoly
+                pd_g[nd,[1,np+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np])
+            else
+                pd_g[nd,[1,np+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np])
+            end
+    end
+
+    # replicate the data
+    sdata = _PM.replicate(data, Npce)
+
+    # add the stochastic data 
+    sdata["T2"] = _PCE.Tensor(2,mop)
+    sdata["T3"] = _PCE.Tensor(3,mop)
+    sdata["T4"] = _PCE.Tensor(4,mop)
+    sdata["mop"] = mop
+    for nw in 1:Npce, nd in 1:Nd
+        if nc[nd] == 1
+            sdata["nw"]["$nw"]["load"]["$nd"]["pd"][1] = pd[nd,nw]
+            sdata["nw"]["$nw"]["load"]["$nd"]["qd"][1] = qd[nd,nw]
+        else
+            [sdata["nw"]["$nw"]["load"]["$nd"]["pd"][j] = pd[nd,nw]/3 for j=1:nc[nd]]
+            [sdata["nw"]["$nw"]["load"]["$nd"]["qd"][j] = qd[nd,nw]/3 for j=1:nc[nd]]
+        end
+
+    end
+    for nw in 1:Npce, nd in 1:Nd
+        if nc[nd] == 1
+            sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][1] = pd_g[nd,nw]
+            sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][1] = qd_g[nd,nw]
+        else
+            [sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][j] = pd_g[nd,nw]/3 for j=1:nc[nd]]
+            [sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][j] = qd_g[nd,nw]/3 for j=1:nc[nd]]
+        end
+
+    end
     sdata["data_model"] =data["data_model"]
     [sdata["nw"]["$k"]["per_unit"] = data["per_unit"] for k=1:length(sdata["nw"])]
     return sdata

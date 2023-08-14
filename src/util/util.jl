@@ -159,7 +159,7 @@ function build_stochastic_data_hc(data::Dict{String,Any}, deg::Int, t_s=50)
         end
         np = length(opq)
         base = data["baseMVA"]
-        μ, σ = data["PV"]["1"]["μ"]/1e6 / base / 3, data["PV"]["1"]["σ"] /1e6/ base / 3
+        μ, σ = data["pv"]["1"]["μ"]/1e6 / base / 3, data["pv"]["1"]["σ"] /1e6/ base / 3
         
             if mop.uni[np] isa _PCE.GaussOrthoPoly
                 pd_g[nd,[1,np+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np])
@@ -186,8 +186,8 @@ function build_stochastic_data_hc(data::Dict{String,Any}, deg::Int, t_s=50)
     
     for nw in 1:Npce, nd in 1:Nd
 
-        data["nw"]["$nw"]["PV"]["$nd"]["pd"] = pd_g[nd,nw]
-        data["nw"]["$nw"]["PV"]["$nd"]["qd"] = qd_g[nd,nw]
+        data["nw"]["$nw"]["pv"]["$nd"]["pd"] = pd_g[nd,nw]
+        data["nw"]["$nw"]["pv"]["$nd"]["qd"] = qd_g[nd,nw]
     end
 
     return data

@@ -61,3 +61,17 @@ function objective_mc_min_expected_generation_cost(pm::AbstractUnbalancedPowerMo
             sum(gen_cost[g] for g in _PMD.ids(pm, :gen, nw=1))
     )
 end
+
+"expected max PV generation"
+function objective_max_PV_mc(pm::AbstractUnbalancedPowerModel; kwargs...)
+    p_size = Dict()
+
+
+    for (p, pv) in _PMD.ref(pm, :pv, nw=1)
+        p_size[p] = Dict(nw => _PMD.var(pm, nw, :p_size, p) for nw in [1])
+    end
+
+    return JuMP.@objective(pm.model, Max,
+            sum(p_size[p][1] for p in _PMD.ids(pm, :pv, nw=1))
+    )
+end

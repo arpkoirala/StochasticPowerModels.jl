@@ -66,10 +66,11 @@ module StochasticPowerModels
     # export
     export BASE_DIR
 
-    export solve_sopf_iv, solve_sopf_acr, solve_sopf_iv_mc
+    export solve_sopf_iv, solve_sopf_acr, solve_sopf_iv_mc, solve_sopf_iv_mc_hc
 
     export build_stochastic_data
     export build_stochastic_data_mc
+    export build_stochastic_data_mc_hc
     export extend_matlab_file
     export pce_coeff, sample, density, print_summary
 end 

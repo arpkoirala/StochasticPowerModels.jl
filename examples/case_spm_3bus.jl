@@ -55,14 +55,16 @@ data["bus"]["2"]["vmin"]= [1.0, 1.0, 1.0]
 [data["bus"]["$i"]["λvmin"]= 1.65 for i=1:length(data["bus"])]
 [data["bus"]["$i"]["λvmax"]= 1.65 for i=1:length(data["bus"])]
 [data["branch"]["$i"]["λcmax"]= 1.65 for i=1:length(data["branch"])]
-[data["gen"]["$i"]["pgmin"]= [-1, -1, -1]./ratio for i=1:length(data["gen"])]
-[data["gen"]["$i"]["pgmax"]= [200, 200, 200]./ratio for i=1:length(data["gen"])]
+[data["gen"]["$i"]["pgmin"]= [-10, -10, -10]./ratio for i=1:length(data["gen"])]
+[data["gen"]["$i"]["pgmax"]= [20, 20, 200]./ratio for i=1:length(data["gen"])]
 [data["gen"]["$i"]["qgmin"]= [-100, -100, -100]./ratio for i=1:length(data["gen"])]
 [data["gen"]["$i"]["qgmax"]= [100, 100, 100]./ratio for i=1:length(data["gen"])]
 [data["gen"]["$i"]["λpmax"]= 1.65 for i=1:length(data["gen"])]
 [data["gen"]["$i"]["λpmin"]= 1.65 for i=1:length(data["gen"])]
 [data["gen"]["$i"]["λqmax"]= 1.65 for i=1:length(data["gen"])]
 [data["gen"]["$i"]["λqmin"]= 1.65 for i=1:length(data["gen"])]
+
+
 
 data["gen"]["1"]["cost"]= data["gen"]["1"]["cost"]
 sdata = SPM.build_stochastic_data_mc_dss(data,deg)

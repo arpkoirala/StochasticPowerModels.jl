@@ -53,7 +53,7 @@ function variable_mc_bus_voltage_magnitude_squared(pm::AbstractUnbalancedPowerMo
             if haskey(bus, "vmax")
                 for (idx, t) in enumerate(terminals[i])
                     JuMP.set_lower_bound(vms[i][t], 0 * bus["vmax"][idx]^2)
-                    # JuMP.set_upper_bound(vms[i][t],  2.0 * bus["vmax"][idx]^2)
+                    JuMP.set_upper_bound(vms[i][t],  2.0 * bus["vmax"][idx]^2)
         
                 end
             end
@@ -122,7 +122,6 @@ function variable_mc_branch_series_current_magnitude_squared(pm::AbstractUnbalan
             # b = branch[l]
             # ub = Inf
             cmax = _PMD._calc_branch_series_current_max(ref(pm, nw, :branch, l), ref(pm, nw, :bus, i), ref(pm, nw, :bus, j))
-            print("Cmax for branch $l is $cmax")
             for (idx,c) in enumerate(connections[(l,i,j)])
                 set_upper_bound(cmss[l][c],  cmax[idx]^2)
                 set_lower_bound(cmss[l][c], 0*cmax[idx]^2)
@@ -159,3 +158,25 @@ function variable_gen_power(pm::AbstractACRModel; nw::Int=nw_id_default, bounded
     _PM.variable_gen_power_real(pm, nw=nw, bounded=bounded, report=report; kwargs...)
     _PM.variable_gen_power_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
 end
+
+# PV size
+"variable: `p_size` for `j` in `load`"
+function variable_mc_pv_size(pm::AbstractUnbalancedPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
+    # connections = Dict(i => pv["connections"] for (i,pv) in _PMD.ref(pm, nw, :pv))
+    p_size = _PMD.var(pm, nw)[:p_size] = Dict(i => JuMP.@variable(pm.model, base_name="$(nw)_p_size$(i)",
+            start = comp_start_value(_PMD.ref(pm, nw, :pv, i), "crd_pv_start", i, 0.0)
+        ) for i in ids(pm, nw, :pv)
+        )
+        if bounded
+            for (i, pv) in _PMD.ref(pm, nw, :pv)
+                if haskey(pv, "p_max") & haskey(pv,"p_min")
+                    JuMP.set_lower_bound(p_size[i], pv["p_min"])
+                    JuMP.set_upper_bound(p_size[i], pv["p_max"]) #2*PV["conn_cap_kW"])
+                else
+                    JuMP.set_lower_bound(p_size[i], 0)
+                    JuMP.set_upper_bound(p_size[i], 15) #2*PV["conn_cap_kW"])
+                end
+            end
+        end     
+        _IM.sol_component_value(pm, pmd_it_sym, nw, :pv, :p_size, ids(pm, nw, :pv), p_size)
+    end

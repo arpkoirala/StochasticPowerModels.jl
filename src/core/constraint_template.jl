@@ -55,11 +55,11 @@ function constraint_mc_gp_current_balance(pm::AbstractUnbalancedPowerModel, i::I
     bus_gens = _PMD.ref(pm, nw, :bus_conns_gen, i)
     bus_loads = _PMD.ref(pm, nw, :bus_conns_load, i)
     bus_shunts = _PMD.ref(pm, nw, :bus_conns_shunt, i)
-
+    bus_pvs = _PMD.ref(pm, nw, :bus_conns_load, i) #to ask Tom to get :PV it works now as all load has PV
     # bus_gs = Dict(k => _PM.ref(pm, nw, :shunt, k, "gs") for k in bus_shunts)
     # bus_bs = Dict(k => _PM.ref(pm, nw, :shunt, k, "bs") for k in bus_shunts)
 
-    constraint_mc_gp_current_balance(pm, nw, i, bus["terminals"], bus["grounded"], bus_arcs, bus_gens, bus_loads, bus_shunts)
+    constraint_mc_gp_current_balance(pm, nw, i, bus["terminals"], bus["grounded"], bus_arcs, bus_gens, bus_loads, bus_shunts, bus_pvs)
 end
 ""
 function constraint_power_balance(pm::AbstractPowerModel, i::Int; nw::Int=nw_id_default)
@@ -224,6 +224,28 @@ function constraint_mc_gp_load_power(pm::AbstractUnbalancedPowerModel, id::Int; 
     
     if configuration==WYE
         constraint_mc_gp_load_power_wye(pm, nw, id, load["load_bus"], load["connections"], a, alpha, b, beta, T2,T3, T4; report=report)
+    else
+        # constraint_mc_load_power_delta(pm, nw, id, load["load_bus"], load["connections"], a, alpha, b, beta; report=report)
+    end
+    # nothing
+end
+
+function constraint_mc_gp_pv_power(pm::AbstractUnbalancedPowerModel, id::Int; nw::Int=nw_id_default, report::Bool=true)
+    pv = ref(pm, nw, :pv, id)
+    bus = ref(pm, nw,:bus, pv["load_bus"])
+    
+    configuration = pv["configuration"]
+    
+    a, alpha, b, beta = _PMD._load_expmodel_params(pv, bus)
+    T2  = pm.data["T2"]
+    T3  = pm.data["T3"]
+    T4  = pm.data["T4"]
+
+    p_size= _PMD.var(pm, 1, :p_size,id)
+
+    
+    if configuration==WYE
+        constraint_mc_gp_pv_power_wye(pm, nw, id, pv["load_bus"], pv["connections"], a, alpha, b, beta, T2,T3, T4, p_size; report=report)
     else
         # constraint_mc_load_power_delta(pm, nw, id, load["load_bus"], load["connections"], a, alpha, b, beta; report=report)
     end
