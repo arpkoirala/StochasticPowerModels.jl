@@ -360,8 +360,8 @@ network_model["sdata"]= s_dict
 network_model["curt"]= curt
 
 network_model["pv"]=deepcopy(network_model["load"]);
-[network_model["pv"][d]["μ"]=s_dict[string(length(s_dict))]["pc"] for d in   keys(network_model["pv"])]
-[network_model["pv"][d]["σ"]=s_dict[string(length(s_dict))]["pd"] for d in   keys(network_model["pv"])]
+[network_model["pv"][d]["μ"]=s_dict[string(length(s_dict))]["pd"] for d in   keys(network_model["pv"])]
+[network_model["pv"][d]["σ"]=s_dict[string(length(s_dict))]["pc"] for d in   keys(network_model["pv"])]
 [network_model["pv"][d]["pd"]=s_dict[string(length(s_dict))]["pd"]/1e6/ power_base / 3 for d in   keys(network_model["pv"])]
 return network_model
 end;
@@ -400,31 +400,46 @@ dist_lv_ts=dist_lv[in([t_s]).(dist_lv.timeslot),:]
 dist_lv_ts_feeder = dist_lv_ts[in(unique(device_df.category)).(dist_lv_ts.cluster),:]
 s_dict=Dict()
 i=1
+
 for dist in eachrow(dist_lv_ts_feeder)
-    s=Dict()
-    s["dst"]= "Beta"
-    s["dst_id"] = dist["cluster"]
-    s["pa"]= dist["alpha"]
-    s["pb"]= dist["beta"]
-    s["pc"]= dist["lower"]
-    s["pd"]= dist["lower"]+dist["upper"]
-    s_dict[string(i)] = s
-    i=i+1
+        s=Dict()
+        s["dst"]= "Beta"
+        s["dst_id"] = dist["cluster"]
+        s["pa"]= dist["alpha"]
+        s["pb"]= dist["beta"]
+        s["pc"]= dist["lower"]
+        s["pd"]= dist["lower"]+dist["upper"]
+        s_dict[string(i)] = s
+        i=i+1
 end
-
-
 ##add Irradiance if day time or there is some Irradiance
-if dist_pv_ts.upper[1]>0
-    s=Dict()
-    s["dst"]= "Beta"
-    s["dst_id"] = 55
-    s["pa"]= dist_pv_ts[!,"alpha"][1]
-    s["pb"]= dist_pv_ts[!,"beta"][1]
-    s["pc"]= dist_pv_ts[!,"lower"][1]
-    s["pd"]= dist_pv_ts[!,"lower"][1]+dist_pv_ts[!,"upper"][1]
-    s_dict[string(i)] = s
-end
+    display(pv_dist_csv[1:4])
+    if (pv_dist_csv[1:4]=="beta") 
+        if (dist_pv_ts.upper[1]>0)
+            s=Dict()
+            s["dst"]= "Beta"
+            s["dst_id"] = 55
+            s["pa"]= dist_pv_ts[!,"alpha"][1]
+            s["pb"]= dist_pv_ts[!,"beta"][1]
+            s["pc"]= dist_pv_ts[!,"lower"][1]
+            s["pd"]= dist_pv_ts[!,"lower"][1]+dist_pv_ts[!,"upper"][1]
+            s_dict[string(i)] = s
+        end
 
+    elseif (pv_dist_csv[1:4]=="Norm") 
+        if (dist_pv_ts.mean[1]>0)
+
+            s=Dict()
+            s["dst"]= "Normal"
+            s["dst_id"] = 55
+            s["pc"]= dist_pv_ts[!,"mean"][1]
+            s["pd"]= dist_pv_ts[!,"std"][1]/2
+            s["pa"]= 0
+            s["pb"]= 1000
+            s_dict[string(i)] = s
+        end
+    end
+ 
 network_model["multinetwork"]   = false
 network_model["is_kron_reduced"] = true
 network_model["conductor_ids"]   = [1, 2, 3]
@@ -546,7 +561,6 @@ buses_json_dict = JSON.parse(io)
     end;
 end;
 
-#print(device_df)
 open(dir * devices_file_name,"r") do io
 devices_json_dict = JSON.parse(io)
   for device in devices_json_dict["LVcustomers"]
@@ -896,7 +910,7 @@ function build_stochastic_data_mc(data::Dict{String,Any}, deg::Int)
     end
 
     # build mop
-    opq = [parse_dst(ns[2]["dst"], ns[2]["pa"], ns[2]["pb"], deg) for ns in data["sdata"]]
+    opq = [parse_dst(data["sdata"]["$ns"]["dst"], data["sdata"]["$ns"]["pa"], data["sdata"]["$ns"]["pb"], deg) for ns in 1:length(data["sdata"])]
     mop = _PCE.MultiOrthoPoly(opq, deg)
 
     # build load matrix
@@ -956,8 +970,8 @@ function build_stochastic_data_mc(data::Dict{String,Any}, deg::Int)
             sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][1] = pd_g[nd,nw]
             sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][1] = qd_g[nd,nw]
         else
-            [sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][j] = pd[nd,nw]/3 for j=1:nc[nd]]
-            [sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][j] = qd[nd,nw]/3 for j=1:nc[nd]]
+            [sdata["nw"]["$nw"]["pv"]["$nd"]["pd"][j] = pd_g[nd,nw]/3 for j=1:nc[nd]]
+            [sdata["nw"]["$nw"]["pv"]["$nd"]["qd"][j] = qd_g[nd,nw]/3 for j=1:nc[nd]]
         end
 
     end

@@ -49,7 +49,7 @@ ratio=data_eng["settings"]["sbase_default"]/org_base
 data=PMD.transform_data_model(data_eng)
 
 [data["bus"]["$i"]["vmax"]= [1.05, 1.05, 1.05] for i=1:length(data["bus"])]
-[data["bus"]["$i"]["vmin"]= [0.9, 0.9, 0.9] for i=1:length(data["bus"])]
+[data["bus"]["$i"]["vmin"]= [0.95, 0.95, 0.95] for i=1:length(data["bus"])]
 data["bus"]["2"]["vmax"]= [1.0, 1.0, 1.0] 
 data["bus"]["2"]["vmin"]= [1.0, 1.0, 1.0] 
 [data["bus"]["$i"]["λvmin"]= 1.65 for i=1:length(data["bus"])]
@@ -69,13 +69,13 @@ data["bus"]["2"]["vmin"]= [1.0, 1.0, 1.0]
 #build PV data
 data["pv"]=deepcopy(data["load"]);
 
-[data["pv"]["$i"]["p_size"]= 25 for i=1:length(data["pv"])]
+[data["pv"]["$i"]["p_size"]= 35 for i=1:length(data["pv"])]
 # [data["pv"]["$i"]["p_min"]= 0 for i=1:length(data["pv"])]
 
 data["gen"]["1"]["cost"]= data["gen"]["1"]["cost"]
 sdata = SPM.build_stochastic_data_mc_dss_hc(data,deg)
 
-result_hc= PMD.solve_mc_model(sdata, IVRUPowerModel, ipopt_solver, SPM.build_sopf_iv_mc_hc; multinetwork=true, solution_processors=[SPM.sol_data_model!])
+result_hc= PMD.solve_mc_model(sdata, IVRUPowerModel, ipopt_solver, SPM.build_sopf_iv_mc_doe; multinetwork=true, solution_processors=[SPM.sol_data_model!])
 result_hc["mop"] = sdata["mop"]
 
 v_sample_1 = sample(result_hc, "bus", 3, "vms", phase=1; sample_size=1000)
@@ -132,9 +132,9 @@ histogram(p_sample_3)
 histogram!(p_sample_1)
 histogram!(p_sample_2)
 
-p_sample_1 = sample(result_hc, "gen", 1, "pg", phase=1; sample_size=1000)
-p_sample_2 = sample(result_hc, "gen", 1, "pg", phase=2; sample_size=1000) 
-p_sample_3 = sample(result_hc, "gen", 1, "pg", phase=3; sample_size=1000)
+p_sample_1 = sample(result_hc, "pv", 1, "p_curt"; sample_size=1000)
+p_sample_2 = sample(result_hc, "pv", 1, "p_curt"; sample_size=1000) 
+p_sample_3 = sample(result_hc, "pv", 1, "p_curt"; sample_size=1000)
 
 histogram(p_sample_3)
 histogram!(p_sample_1)

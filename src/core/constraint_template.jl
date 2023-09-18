@@ -41,6 +41,7 @@ function constraint_current_balance(pm::AbstractPowerModel, i::Int; nw::Int=nw_i
     constraint_current_balance(pm, nw, i, bus_arcs, bus_gens, bus_loads, bus_gs, bus_bs)
 end
 
+
 ""
 function constraint_mc_gp_current_balance(pm::AbstractUnbalancedPowerModel, i::Int; nw::Int=nw_id_default)
     # if !haskey(_PM.con(pm, nw), :kcl_cr)
@@ -60,6 +61,26 @@ function constraint_mc_gp_current_balance(pm::AbstractUnbalancedPowerModel, i::I
     # bus_bs = Dict(k => _PM.ref(pm, nw, :shunt, k, "bs") for k in bus_shunts)
 
     constraint_mc_gp_current_balance(pm, nw, i, bus["terminals"], bus["grounded"], bus_arcs, bus_gens, bus_loads, bus_shunts, bus_pvs)
+end
+""
+function constraint_mc_gp_current_balance_with_curtailment(pm::AbstractUnbalancedPowerModel, i::Int; nw::Int=nw_id_default)
+    # if !haskey(_PM.con(pm, nw), :kcl_cr)
+    #     _PM.con(pm, nw)[:kcl_cr] = Dict{Int,JuMP.ConstraintRef}()
+    # end
+    # if !haskey(_PM.con(pm, nw), :kcl_ci)
+    #     _PM.con(pm, nw)[:kcl_ci] = Dict{Int,JuMP.ConstraintRef}()
+    # end
+
+    bus = _PMD.ref(pm, nw, :bus, i)
+    bus_arcs = _PMD.ref(pm, nw, :bus_arcs_conns_branch, i)
+    bus_gens = _PMD.ref(pm, nw, :bus_conns_gen, i)
+    bus_loads = _PMD.ref(pm, nw, :bus_conns_load, i)
+    bus_shunts = _PMD.ref(pm, nw, :bus_conns_shunt, i)
+    bus_pvs = _PMD.ref(pm, nw, :bus_conns_load, i) #to ask Tom to get :PV it works now as all load has PV
+    # bus_gs = Dict(k => _PM.ref(pm, nw, :shunt, k, "gs") for k in bus_shunts)
+    # bus_bs = Dict(k => _PM.ref(pm, nw, :shunt, k, "bs") for k in bus_shunts)
+
+    constraint_mc_gp_current_balance_with_curtailment(pm, nw, i, bus["terminals"], bus["grounded"], bus_arcs, bus_gens, bus_loads, bus_shunts, bus_pvs)
 end
 ""
 function constraint_power_balance(pm::AbstractPowerModel, i::Int; nw::Int=nw_id_default)
@@ -246,12 +267,35 @@ function constraint_mc_gp_pv_power(pm::AbstractUnbalancedPowerModel, id::Int; nw
     
     if configuration==WYE
         constraint_mc_gp_pv_power_wye(pm, nw, id, pv["load_bus"], pv["connections"], a, alpha, b, beta, T2,T3, T4, p_size; report=report)
-    else
+        else
         # constraint_mc_load_power_delta(pm, nw, id, load["load_bus"], load["connections"], a, alpha, b, beta; report=report)
     end
     # nothing
 end
 
+function constraint_mc_gp_pv_power_doe(pm::AbstractUnbalancedPowerModel, id::Int; nw::Int=nw_id_default, report::Bool=true)
+    pv = ref(pm, nw, :pv, id)
+    bus = ref(pm, nw,:bus, pv["load_bus"])
+    
+    configuration = pv["configuration"]
+    
+    a, alpha, b, beta = _PMD._load_expmodel_params(pv, bus)
+    T2  = pm.data["T2"]
+    T3  = pm.data["T3"]
+    T4  = pm.data["T4"]
+
+    p_size= _PMD.ref(pm, 1, :pv,id,"p_size")
+
+
+    if configuration==WYE
+        constraint_mc_gp_pv_power_wye_doe(pm, nw, id, pv["load_bus"], pv["connections"], a, alpha, b, beta, T2,T3, T4, p_size; report=report)
+        # constraint_mc_gp_pv_curtailment_power(pm, nw, id, pv["load_bus"], pv["connections"], a, alpha, b, beta, T2,T3, T4, p_size; report=report)
+   
+    else
+        # constraint_mc_load_power_delta(pm, nw, id, load["load_bus"], load["connections"], a, alpha, b, beta; report=report)
+    end
+    # nothing
+end
 # chance constraint limit
 ## bus
 ""
@@ -327,6 +371,25 @@ function constraint_mc_cc_branch_series_current_magnitude_squared(pm::AbstractUn
     mop = pm.data["mop"]
 
     constraint_mc_cc_branch_series_current_magnitude_squared(pm, b, _PMD.ref(pm, nw, :branch, b)["t_connections"], cmax, λmax, T2, mop)
+end
+
+""
+function constraint_mc_cc_pv_curtailed(pm::AbstractUnbalancedPowerModel, p::Int; nw::Int=nw_id_default)
+    λmin = 3
+    pmin=0
+    λmax = 3
+    pv=_PMD.ref(pm, nw, :pv, p)
+    if haskey(pv, "σ")
+        pmax= _PMD.ref(pm, 1, :pv,p,"p_size")* (_PMD.ref(pm, 1, :pv,p,"μ")-0.5* _PMD.ref(pm, 1, :pv,p,"σ")) * 0.001 /(_PMD.ref(pm, 1, :baseMVA)*1000)
+    else
+        pmax= _PMD.ref(pm, 1, :pv,p,"p_size") /(_PMD.ref(pm, 1, :baseMVA)*1000)
+    end
+
+    display(pmax*500)
+    T2  = pm.data["T2"]
+    mop = pm.data["mop"]
+
+    constraint_mc_cc_pv_curtailed(pm, p, _PMD.ref(pm, nw, :pv, p)["connections"], pmin, λmin, pmax, λmax, T2, mop)
 end
 
 ## generator

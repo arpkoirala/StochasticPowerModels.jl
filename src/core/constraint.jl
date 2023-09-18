@@ -202,6 +202,27 @@ function constraint_mc_cc_branch_series_current_magnitude_squared(pm::AbstractUn
     end
 end
 
+## PV curtailed
+""
+function constraint_mc_cc_pv_curtailed(pm::AbstractUnbalancedACRModel, p,connections, pmin,λmin, pmax, λmax, T2, mop)
+    phase=length(connections)    
+    for (idx, c) in enumerate(connections)
+            p_curt = [_PMD.var(pm, nw, :p_curt, p)[c] for nw in sorted_nw_ids(pm)]
+        # bound on the expectation
+            JuMP.@constraint(pm.model,  (pmin/phase) <= _PCE.mean(p_curt, mop))
+            JuMP.@constraint(pm.model,  _PCE.mean(p_curt, mop) <= (pmax/phase))
+            # chance constraint bounds
+            # JuMP.@constraint(pm.model,  _PCE.var(p_curt,T2)
+            #                             <=
+            #                             (( _PCE.mean(p_curt,mop)- (pmin/phase)) / λmin)^2
+            #                 )
+            # JuMP.@constraint(pm.model,  _PCE.var(p_curt,T2)
+            #                             <=
+            #                             (((pmax/phase) - _PCE.mean(p_curt,mop)) / λmax)^2
+            #                 )
+        end
+end
+
 ## generator
 ""
 function constraint_mc_cc_gen_power_real(pm::AbstractUnbalancedACRModel, g, connections, pmin, pmax, λmin, λmax, T2, mop)

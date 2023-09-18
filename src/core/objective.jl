@@ -56,7 +56,6 @@ function objective_mc_min_expected_generation_cost(pm::AbstractUnbalancedPowerMo
                 end
         end
     end
-    display(sum(gen_cost[g] for g in _PMD.ids(pm, :gen, nw=1)))
     return JuMP.@NLobjective(pm.model, Min,
             sum(gen_cost[g] for g in _PMD.ids(pm, :gen, nw=1))
     )
@@ -73,5 +72,154 @@ function objective_max_PV_mc(pm::AbstractUnbalancedPowerModel; kwargs...)
 
     return JuMP.@objective(pm.model, Max,
             sum(p_size[p][1] for p in _PMD.ids(pm, :pv, nw=1))
+    )
+end
+
+"expected absolute curtailment"
+function objective_min_PV_curtail_absolute(pm::AbstractUnbalancedPowerModel; kwargs...)
+    curtailment = Dict()
+
+    T2 = pm.data["T2"]
+    for nw=1:1
+        for (p, pv) in _PMD.ref(pm, :pv, nw=1)
+            p_curtail=  _PMD.var(pm, nw, :p_c, p)
+            p_size= _PMD.ref(pm, 1, :pv, p ,"p_size")
+            curtailment[p] = p_curtail*p_size
+        end
+    end
+   display(sum(curtailment[p] for p in _PMD.ids(pm, :pv, nw=1)))
+    return JuMP.@NLobjective(pm.model, Max,
+            sum(curtailment[p] for p in _PMD.ids(pm, :pv, nw=1))
+    )
+end
+
+"expected relative curtailment"
+function objective_min_PV_curtail(pm::AbstractUnbalancedPowerModel; kwargs...)
+    curtailment = Dict()
+
+    T2 = pm.data["T2"]
+    for nw=1:1
+        for (p, pv) in _PMD.ref(pm, :pv, nw=1)
+            p_curtail =  _PMD.var(pm, nw, :p_c, p)
+            curtailment[p] = p_curtail
+        end
+    end
+   display(sum(curtailment[p] for p in _PMD.ids(pm, :pv, nw=1)))
+    return JuMP.@NLobjective(pm.model, Max,
+            sum(curtailment[p] for p in _PMD.ids(pm, :pv, nw=1))
+    )
+end
+
+"expected cost of active power generation"
+function objective_min_PV_injection(pm::AbstractUnbalancedPowerModel; kwargs...)
+    injection=Dict()
+    T2 = pm.data["T2"]
+    for nw=1:1
+        for (p, pv) in _PMD.ref(pm, :pv, nw=1)
+            bus = ref(pm, nw, :bus, pv["load_bus"])
+            load = ref(pm, nw, :load, p) #load of the consumer with pv p
+            bus = ref(pm, nw,:bus, load["load_bus"])
+            a_load, alpha_load, b_load, beta_load = _PMD._load_expmodel_params(load, bus)
+            a_pv, alpha_pv, b_pv, beta_pv = _PMD._load_expmodel_params(pv, bus)
+            p_curtail =  _PMD.var(pm, nw, :p_c, p)
+            p_size= _PMD.ref(pm, 1, :pv,p,"p_size")
+            # if (a_pv*p_size)>a_load
+            injection[p]= sum((p_curtail*a_pv[c]*p_size-a_load[c]) for c in 1:length(pv["connections"]))
+            # else
+                # injection[p] = 0
+            # end
+        end
+    end
+   display(sum(injection[p] for p in _PMD.ids(pm, :pv, nw=1)))
+    return JuMP.@NLobjective(pm.model, Min,
+    sum(injection[p] for p in _PMD.ids(pm, :pv, nw=1))
+    )
+end
+
+"expected cost of active power generation"
+function objective_equality_PV_injection(pm::AbstractUnbalancedPowerModel; kwargs...)
+    injection=Dict()
+    T2 = pm.data["T2"]
+    for nw=1:1
+        for (p, pv) in _PMD.ref(pm, :pv, nw=1)
+            bus_pv = _PMD.ref(pm, nw, :bus, pv["load_bus"])
+            load = _PMD.ref(pm, nw, :load, p) #load of the consumer with pv p
+            bus_load = _PMD.ref(pm, nw,:bus, load["load_bus"])
+            a_load, alpha_load, b_load, beta_load = _PMD._load_expmodel_params(load, bus_load)
+            a_pv, alpha_pv, b_pv, beta_pv = _PMD._load_expmodel_params(pv, bus_pv)
+            p_curtail =  _PMD.var(pm, nw, :p_c, p)
+            p_size= _PMD.ref(pm, 1, :pv,p,"p_size")
+            # p_size= _PMD.ref(pm, 1, :pv,id,"p_size")
+            display(p_size)
+            injection[p]= sum((p_curtail*a_pv[c]*p_size-a_load[c]) for c in 1:length(pv["connections"]))/(sum((a_pv[c]*p_size)-a_load[c] for c in 1:length(pv["connections"])))
+            
+        end
+    end
+
+   u_mean=0.6
+   display(u_mean)
+   display(injection)
+    return JuMP.@NLobjective(pm.model, Min,
+    (sum((injection[p]-u_mean)^2 for p in _PMD.ids(pm, :pv, nw=1)))/7
+    )
+end
+
+
+"expected cost of active power generation"
+function objective_Qualityofservice_PV_injection(pm::AbstractUnbalancedPowerModel; kwargs...)
+    injection=Dict()
+    T2 = pm.data["T2"]
+    for nw=1:1
+        for (p, pv) in _PMD.ref(pm, :pv, nw=1)
+            bus_pv = _PMD.ref(pm, nw, :bus, pv["load_bus"])
+            load = _PMD.ref(pm, nw, :load, p) #load of the consumer with pv p
+            bus_load = _PMD.ref(pm, nw,:bus, load["load_bus"])
+            a_load, alpha_load, b_load, beta_load = _PMD._load_expmodel_params(load, bus_load)
+            a_pv, alpha_pv, b_pv, beta_pv = _PMD._load_expmodel_params(pv, bus_pv)
+            p_curtail =  _PMD.var(pm, nw, :p_c, p)
+            p_size= _PMD.ref(pm, 1, :pv,p,"p_size")
+            # p_size= _PMD.ref(pm, 1, :pv,id,"p_size")
+            
+            injection[p]= sum((p_curtail*a_pv[c]*p_size-a_load[c]) for c in 1:length(pv["connections"]))/(sum((a_pv[c]*p_size)-a_load[c] for c in 1:length(pv["connections"])))
+            
+        end
+    end
+
+   u_mean=0.8
+   σ = 0.5
+   display(u_mean)
+   display(injection)
+    return JuMP.@NLobjective(pm.model, Min,
+    (((sum((((injection[p]-u_mean))^2)/7 for p in _PMD.ids(pm, :pv, nw=1)))/σ))
+    )
+    # return JuMP.@NLobjective(pm.model, Min,
+    # (sum((injection[p]) for p in _PMD.ids(pm, :pv, nw=1))^2)/(7* sum((injection[p])^2 for p in _PMD.ids(pm, :pv, nw=1)))
+    # )
+end
+
+"expected cost of active power generation"
+function objective_alpha_PV_injection(pm::AbstractUnbalancedPowerModel; kwargs...)
+    injection=Dict()
+    T2 = pm.data["T2"]
+    for nw=1:1
+        for (p, pv) in _PMD.ref(pm, :pv, nw=1)
+            bus_pv = _PMD.ref(pm, nw, :bus, pv["load_bus"])
+            load = _PMD.ref(pm, nw, :load, p) #load of the consumer with pv p
+            bus_load = _PMD.ref(pm, nw,:bus, load["load_bus"])
+            a_load, alpha_load, b_load, beta_load = _PMD._load_expmodel_params(load, bus_load)
+            a_pv, alpha_pv, b_pv, beta_pv = _PMD._load_expmodel_params(pv, bus_pv)
+            p_curtail =  _PMD.var(pm, nw, :p_c, p)
+            p_size= _PMD.ref(pm, 1, :pv,p,"p_size")
+            # p_size= _PMD.ref(pm, 1, :pv,id,"p_size")
+            
+            injection[p]= sum((p_curtail*a_pv[c]*p_size-a_load[c]) for c in 1:length(pv["connections"]))/(sum((a_pv[c]*p_size-a_load[c]) for c in 1:length(pv["connections"])))
+            
+        end
+    end
+
+   alpha = 0
+   display(injection)
+    return JuMP.@NLobjective(pm.model, Max,
+    sum(((injection[p])^(1-alpha))/(1-alpha) for p in _PMD.ids(pm, :pv, nw=1))
     )
 end

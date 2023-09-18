@@ -180,3 +180,25 @@ function variable_mc_pv_size(pm::AbstractUnbalancedPowerModel; nw::Int=nw_id_def
         end     
         _IM.sol_component_value(pm, pmd_it_sym, nw, :pv, :p_size, ids(pm, nw, :pv), p_size)
     end
+
+    # PV size
+"variable: `p_size` for `j` in `load`"
+function variable_mc_pv_curt_deterministic(pm::AbstractUnbalancedPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
+    # connections = Dict(i => pv["connections"] for (i,pv) in _PMD.ref(pm, nw, :pv))
+    p_c = _PMD.var(pm, nw)[:p_c] = Dict(i => JuMP.@variable(pm.model, base_name="$(nw)_p_c$(i)",
+            start = comp_start_value(_PMD.ref(pm, nw, :pv, i), "p_c_start", i, 0.0)
+        ) for i in ids(pm, nw, :pv)
+        )
+        if bounded
+            for (i, pv) in _PMD.ref(pm, nw, :pv)
+                if haskey(pv, "p_max") & haskey(pv,"p_min")
+                    JuMP.set_lower_bound(p_c[i],0.1)
+                    JuMP.set_upper_bound(p_c[i], 1) #2*PV["conn_cap_kW"])
+                else
+                    JuMP.set_lower_bound(p_c[i], 0.1)
+                    JuMP.set_upper_bound(p_c[i], 1) #2*PV["conn_cap_kW"])
+                end
+            end
+        end     
+        _IM.sol_component_value(pm, pmd_it_sym, nw, :pv, :p_c, ids(pm, nw, :pv), p_c)
+    end

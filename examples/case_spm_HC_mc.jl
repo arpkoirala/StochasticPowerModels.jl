@@ -37,7 +37,7 @@ aux  = true
 red  = false
 
 feeder ="Pola/1076069_1274129_mod_configuration.json" #feeder with 7 consumer for test
-feeder= "All_feeder/65019_74478_configuration.json"
+# feeder= "All_feeder/65019_74478_configuration.json"
 # data
 file  = joinpath(BASE_DIR, "test/data/Spanish/")
 load_file= "beta_lm_2016_8_6.csv"
@@ -49,7 +49,7 @@ pv_file = "beta_pm_2016_8_6.csv"
 r=Dict()
 for i=61:70
     data  = SPM.build_mathematical_model_mc(file, feeder,load_file, pv_file, t_s=i)
-    [data["bus"]["$i"]["vmax"]= [1.05, 1.05, 1.05] for i=1:length(data["bus"])]
+    [data["bus"]["$i"]["vmax"]= [1.1, 1.1, 1.1] for i=1:length(data["bus"])]
     [data["bus"]["$i"]["vmin"]= [0.95, 0.95, 0.95] for i=1:length(data["bus"])]    
     sdata = SPM.build_stochastic_data_mc(data,deg)
     r["$i"]= SPM.solve_sopf_iv_mc_hc(data, PMD.IVRUPowerModel, ipopt_solver)#, aux=aux, deg=deg, red=red, stochastic=false)
