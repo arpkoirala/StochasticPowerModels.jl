@@ -31,13 +31,13 @@ For now, we only support Polynomial Chaos Expansion based stochastic HC and dete
 
 ## Example in DoE calculation
 - For an example in different type of HC calculation:
-    - `examples/case_test_DoE.jl` is pointed out where the codes for DoE paper is present:
+    - `examples/case_test_doe.jl` is pointed out where the codes for DoE paper is present:
     
     Koirala, Arpan; Geth, Frederik, Van Aacker, Tom (2023): Determining Dynamic Operating Envelopes Using Stochastic Unbalanced Optimal Power Flow 
 
 The Folder /text/data/Spanish/Pola has test network on folder in JSON format for both balanced and unbalanced assumption.
--Normal_pm_2021.csv has the gaussinan PV forecast used in the numerical illustration
--beta_lm_2016_8_6_60min.csv has the Beta distribution of diferent load type used in the numerical illustration.
+- Normal_pm_2021.csv has the gaussinan PV forecast used in the numerical illustration
+- beta_lm_2016_8_6_60min.csv has the Beta distribution of diferent load type used in the numerical illustration.
 - the parsers are available at \src\util section
 
 The folder also contains load distribution functions, irradiance forecast PDF and a parser.
