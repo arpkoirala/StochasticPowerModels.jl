@@ -389,7 +389,7 @@ kwpu = (1e-3)/power_base
 
 network_model = Dict{String,Any}()
 configuration_json_dict = Dict{Any,Any}()
-device_df=CSV.read(dir*config_file_name[1:length(config_file_name)-19]*".csv", DataFrame)
+device_df=CSV.read(dir*config_file_name[1:length(config_file_name)-22]*"mod.csv", DataFrame)
 
 dist_lv=CSV.read(dir*load_dist_csv, DataFrame)
 dist_pv=CSV.read(dir*pv_dist_csv, DataFrame)

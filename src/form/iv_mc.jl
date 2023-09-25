@@ -543,7 +543,32 @@ function constraint_mc_gp_pv_power_wye_doe(pm::IVRUPowerModel, n::Int, id::Int, 
         sol(pm, n, :pv, id)[:cid_bus_pv] = _PMD.var(pm, n, :cid_bus_pv, id)
     end
 end
+# constraint_mc_gp_pv_power_det_injection(pm, nw, id, pv["load_bus"], pv["connections"], a, alpha, b, beta, p_size; report=report)
 
+function constraint_mc_gp_pv_power_det_injection(pm::IVRUPowerModel, n::Int, id::Int, bus_id::Int, connections::Vector{Int}, a::Vector{<:Real}, alpha::Vector{<:Real}, b::Vector{<:Real}, beta::Vector{<:Real}, p_size; report::Bool=true)
+  if n==1
+            load = _PMD.ref(pm, n, :load, id) #load of the consumer with pv p
+            bus_load = _PMD.ref(pm, n,:bus, load["load_bus"])
+            a_load, alpha_load, b_load, beta_load = _PMD._load_expmodel_params(load, bus_load)
+            p_curtail =  _PMD.var(pm, n, :p_c, id)
+            p_c = _PMD.var(pm, 1, :p_c, id)
+            n_inj = _PMD.var(pm, 1, :n_inj, id)
+            inj= sum((a[c]*p_size-a_load[c]) for c in 1:length(connections))
+            if inj>0
+                p=JuMP.@constraint(pm.model,  -n_inj <= 0)
+                q=JuMP.@constraint(pm.model,  n_inj
+                                                <=
+                                                sum((a[c]*p_size*p_c-a_load[c]) for c in 1:length(connections))/inj
+                                                            )
+                JuMP.@constraint(pm.model,  0 <= p_c)
+                JuMP.@constraint(pm.model,  p_c <= 1)
+            else
+                JuMP.fix(p_c, 1)                                          
+            end
+            # display(p)
+            # display(q)
+    end
+end
 
 ""
 function  constraint_mc_gp_pv_curtailment_power(pm::IVRUPowerModel, n::Int, id::Int, bus_id::Int, connections::Vector{Int}, a::Vector{<:Real}, alpha::Vector{<:Real}, b::Vector{<:Real}, beta::Vector{<:Real}, T2, T3, T4, p_size; report::Bool=true)

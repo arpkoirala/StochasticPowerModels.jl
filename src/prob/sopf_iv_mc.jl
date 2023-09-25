@@ -212,7 +212,8 @@ function build_sopf_iv_mc_doe(pm::AbstractUnbalancedPowerModel)
         variable_mc_pv_current(pm, nw=n, bounded=false)
         # variable_mc_pv_curtailment_doe(pm, nw=n, bounded=false)
         if n==1
-            variable_mc_pv_curt_deterministic(pm, nw=n, bounded=true)
+            variable_mc_pv_curt_deterministic(pm, nw=n, bounded=false)
+            variable_mc_injection_deterministic(pm, nw=n, bounded=false)
         end
     end
 
@@ -268,10 +269,11 @@ function build_sopf_iv_mc_doe(pm::AbstractUnbalancedPowerModel)
             constraint_mc_gp_branch_series_current_magnitude_squared(pm, b, nw=n)
         end
     end
-    # objective_min_PV_curtail(pm)
     # objective_min_PV_curtail_absolute(pm)
-    # objective_min_PV_injection(pm)
+    # objective_max_PV_curtail(pm)
+    
+    objective_min_PV_curtail(pm)
     # objective_equality_PV_injection(pm)
     # objective_Qualityofservice_PV_injection(pm)
-    objective_alpha_PV_injection(pm)
+    # objective_alpha_PV_injection(pm)
 end

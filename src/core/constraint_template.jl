@@ -289,6 +289,7 @@ function constraint_mc_gp_pv_power_doe(pm::AbstractUnbalancedPowerModel, id::Int
 
     if configuration==WYE
         constraint_mc_gp_pv_power_wye_doe(pm, nw, id, pv["load_bus"], pv["connections"], a, alpha, b, beta, T2,T3, T4, p_size; report=report)
+        constraint_mc_gp_pv_power_det_injection(pm, nw, id, pv["load_bus"], pv["connections"], a, alpha, b, beta, p_size; report=report)
         # constraint_mc_gp_pv_curtailment_power(pm, nw, id, pv["load_bus"], pv["connections"], a, alpha, b, beta, T2,T3, T4, p_size; report=report)
    
     else
