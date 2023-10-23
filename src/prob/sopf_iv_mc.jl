@@ -269,11 +269,11 @@ function build_sopf_iv_mc_doe(pm::AbstractUnbalancedPowerModel)
             constraint_mc_gp_branch_series_current_magnitude_squared(pm, b, nw=n)
         end
     end
-    # objective_min_PV_curtail_absolute(pm)
-    # objective_max_PV_curtail(pm)
+    ## objective_min_PV_curtail_absolute(pm)
+    ## objective_max_PV_curtail(pm)
+    ## objective_Qualityofservice_PV_injection(pm)
     
-    objective_min_PV_curtail(pm)
-    # objective_equality_PV_injection(pm)
-    # objective_Qualityofservice_PV_injection(pm)
-    # objective_alpha_PV_injection(pm)
+    objective_min_PV_curtail(pm) #Efficiency measure
+    # objective_equality_PV_injection(pm) #Equality measure
+    # objective_alpha_PV_injection(pm) #alpha fairness
 end

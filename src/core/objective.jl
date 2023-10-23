@@ -350,7 +350,7 @@ function objective_alpha_PV_injection(pm::AbstractUnbalancedPowerModel; kwargs..
     end
     display(injection)
    
-   alpha = 0.99
+   alpha = 10
     ϵ=1e-2
     return JuMP.@NLobjective(pm.model, Max,
     sum(((injection[p]+ϵ)^(1-alpha))/(1-alpha) for p in active)
