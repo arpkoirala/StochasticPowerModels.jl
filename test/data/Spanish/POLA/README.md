@@ -40,12 +40,12 @@ The Folder /text/data/Spanish/Pola has test network on folder in JSON format for
 - beta_lm_2016_8_6_60min.csv has the Beta distribution of diferent load type used in the numerical illustration.
 - the parsers are available at \src\util section
 
-The folder also contains load distribution functions, irradiance forecast PDF and a parser.
+The folder also contains load distribution functions, irradiance forecast PDF and a parser (`build_stochastic_data_mc(data,deg)`).
     
 ## Network Data with Stochastic Data Extension
 The Folder /text/data/Spanish/All_feeder has Spanish network on folder in JSON format. 
 
-The file `test/data/Spanish/CreatePMDDictionary.jl` is the parser file to convert the JSON file into `PowerModels.jl` format.
+The file `test/data/Spanish/CreatePMDDictionary.jl` is the parser file to convert the JSON file into `PowerModels.jl` or `PowerModelsDistribution.jl` format.
 
 The original dataset consists of a full Low voltage network of sub-urban region with 30 transformers, 160 feeders, 10290 nodes and 8087 consumers, with load profiles of 20 days from actual smart-meter.
 The paper is available in https://www.sciencedirect.com/science/article/pii/S0142061519318836
@@ -75,12 +75,12 @@ with support from the following contributors:
 - Arpan Koirala ([@arpkoirala](https://github.com/arpkoirala)), KU Leuven, ACR formulation
 - Frederik Geth ([@frederikgeth](https://github.com/frederikgeth)), CSIRO, reduced IVR formulation
 
-The hosting capacity extension was developed by Arpan Koirala.
+The threephase hosting capacity extension and dynamic operating envelope was developed by Arpan Koirala.
 
 The latest stable release of StochasticPowerModels can be obtained at:
 
 ```
-https://github.com/timmyfaraday/StochasticPowerModels.jl.git
+https://github.com/Electa-Git/StochasticPowerModels.jl
 ```
 ## License
 
